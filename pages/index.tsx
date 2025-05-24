@@ -106,13 +106,51 @@ export default function HomePage() {
       };
 
       // 阶段更新回调
-      const handleStageUpdate = (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string) => {
-        setLoadingState(prev => ({
-          ...prev,
-          currentStage: stage,
-          progress: Math.round(progress),
-          currentModel: currentModel || null,
-        }));
+      const handleStageUpdate = (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => {
+        console.log('🔄 [Frontend] ========== Stage Update Received ==========');
+        console.log('🔄 [Frontend] Received parameters:', { stage, progress, currentModel, message });
+        console.log('🔄 [Frontend] Call timestamp:', new Date().toISOString());
+        console.log('🔍 [Frontend] Previous loading state:', JSON.stringify(loadingState, null, 2));
+        
+        // 验证参数
+        if (typeof progress !== 'number' || isNaN(progress)) {
+          console.error('❌ [Frontend] Invalid progress value:', progress);
+          return;
+        }
+        
+        if (!['initial', 'refined', 'final'].includes(stage)) {
+          console.error('❌ [Frontend] Invalid stage value:', stage);
+          return;
+        }
+        
+        console.log('✅ [Frontend] Parameters validation passed');
+        
+        setLoadingState(prev => {
+          console.log('🔧 [Frontend] Current state in setState:', JSON.stringify(prev, null, 2));
+          
+          const newState = {
+            ...prev,
+            currentStage: stage,
+            progress: Math.round(progress),
+            currentModel: currentModel || null,
+          };
+          
+          console.log('🔧 [Frontend] New state to be set:', JSON.stringify(newState, null, 2));
+          console.log('🔧 [Frontend] State changes:');
+          console.log(`    - Stage: ${prev.currentStage} → ${newState.currentStage}`);
+          console.log(`    - Progress: ${prev.progress}% → ${newState.progress}%`);
+          console.log(`    - Model: ${prev.currentModel} → ${newState.currentModel}`);
+          
+          return newState;
+        });
+        
+        // 延迟检查状态是否真的更新了
+        setTimeout(() => {
+          console.log('⏰ [Frontend] Post-update loading state check:', JSON.stringify(loadingState, null, 2));
+        }, 100);
+        
+        console.log('✅ [Frontend] Stage update callback completed');
+        console.log('🔄 [Frontend] ==========================================');
       };
 
       // 发起辩论请求

@@ -48,7 +48,242 @@ api.interceptors.response.use(
 );
 
 /**
- * 发起辩论请求（带阶段更新回调）
+ * 使用真实进度反馈的辩论函数（通过SSE）
+ */
+export async function startDebateWithRealProgress(
+  request: DebateRequest,
+  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => void
+): Promise<DebateResult> {
+  console.log('🚀 [SSE] Starting debate with real progress feedback');
+  console.log('📋 [SSE] Request data:', request);
+  console.log('🔄 [SSE] Stage callback provided:', !!onStageUpdate);
+
+  return new Promise(async (resolve, reject) => {
+    try {
+      // 步骤1：存储请求数据并获取会话ID
+      console.log('📤 [SSE] Step 1: Storing request data...');
+      const sessionResponse = await api.post('/debate-stream', request);
+      console.log('✅ [SSE] Session response:', sessionResponse.data);
+      
+      if (!sessionResponse.data.success || !sessionResponse.data.sessionId) {
+        console.error('❌ [SSE] Failed to create session:', sessionResponse.data);
+        throw new Error('Failed to create debate session');
+      }
+      
+      const sessionId = sessionResponse.data.sessionId;
+      console.log(`🔐 [SSE] Session ID obtained: ${sessionId}`);
+      
+      // 步骤2：建立SSE连接
+      console.log('📡 [SSE] Step 2: Establishing SSE connection...');
+      const eventSourceUrl = `/api/debate-stream?sessionId=${sessionId}`;
+      console.log('🌐 [SSE] EventSource URL:', eventSourceUrl);
+      
+      const eventSource = new EventSource(eventSourceUrl);
+      console.log('🔗 [SSE] EventSource created, initial state:', eventSource.readyState);
+      
+      let result: DebateResult | null = null;
+      let messageCount = 0;
+      let connectionEstablished = false;
+
+      eventSource.onopen = (event) => {
+        connectionEstablished = true;
+        console.log('✅ [SSE] Connection opened successfully');
+        console.log('🔍 [SSE] EventSource readyState:', eventSource.readyState);
+        console.log('🔍 [SSE] Open event details:', event);
+      };
+
+      eventSource.onmessage = (event) => {
+        messageCount++;
+        console.log(`📨 [SSE] Message #${messageCount} received`);
+        console.log('📨 [SSE] Raw event data:', event.data);
+        console.log('📨 [SSE] Event origin:', event.origin);
+        console.log('📨 [SSE] Event lastEventId:', event.lastEventId);
+        
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📊 [SSE] Parsed data:', data);
+          console.log('📊 [SSE] Event type:', data.type);
+          
+          switch (data.type) {
+            case 'connected':
+              console.log('🔗 [SSE] Connection confirmation received');
+              console.log('🔐 [SSE] Session ID in response:', data.sessionId);
+              break;
+              
+            case 'stage_start':
+            case 'stage_progress':
+            case 'model_complete':
+              console.log(`🎯 [SSE] Progress event - Type: ${data.type}`);
+              console.log(`🎯 [SSE] Stage: ${data.stage}, Progress: ${data.progress}%, Model: ${data.currentModel}`);
+              console.log(`🎯 [SSE] Current stage: ${data.currentStage}, Message: ${data.message}`);
+              
+              if (onStageUpdate) {
+                const stageMap: { [key: number]: 'initial' | 'refined' | 'final' } = {
+                  1: 'initial',
+                  2: 'refined',
+                  3: 'final'
+                };
+                const stage = stageMap[data.stage] || 'initial';
+                
+                console.log(`🔄 [SSE] About to call onStageUpdate with:`);
+                console.log(`    - Stage: ${stage} (mapped from ${data.stage})`);
+                console.log(`    - Progress: ${data.progress}%`);
+                console.log(`    - Current model: ${data.currentModel}`);
+                console.log(`    - Message: ${data.message}`);
+                
+                try {
+                  onStageUpdate(stage, data.progress, data.currentModel, data.message);
+                  console.log(`✅ [SSE] onStageUpdate callback completed successfully`);
+                } catch (callbackError) {
+                  console.error('❌ [SSE] Error in onStageUpdate callback:', callbackError);
+                }
+              } else {
+                console.warn('⚠️ [SSE] onStageUpdate callback is not defined');
+              }
+              break;
+              
+            case 'stage_complete':
+              console.log(`✅ [SSE] Stage ${data.stage} completed with ${data.progress}% progress`);
+              console.log(`✅ [SSE] Stage complete message: ${data.message}`);
+              
+              if (onStageUpdate) {
+                const stageMap: { [key: number]: 'initial' | 'refined' | 'final' } = {
+                  1: 'initial',
+                  2: 'refined',
+                  3: 'final'
+                };
+                const stage = stageMap[data.stage] || 'initial';
+                
+                console.log(`🔄 [SSE] Calling onStageUpdate for stage completion:`);
+                console.log(`    - Stage: ${stage} (mapped from ${data.stage})`);
+                console.log(`    - Progress: ${data.progress}%`);
+                console.log(`    - Message: ${data.message}`);
+                
+                try {
+                  onStageUpdate(stage, data.progress, undefined, data.message);
+                  console.log(`✅ [SSE] Stage completion callback completed`);
+                } catch (callbackError) {
+                  console.error('❌ [SSE] Error in stage completion callback:', callbackError);
+                }
+              }
+              break;
+              
+            case 'complete':
+              console.log('🎉 [SSE] Debate completed successfully');
+              console.log('🎉 [SSE] Final result data:', data.data);
+              
+              result = data.data;
+              if (onStageUpdate) {
+                console.log('🔄 [SSE] Calling final onStageUpdate (100% completion)');
+                try {
+                  onStageUpdate('final', 100, undefined, data.message);
+                  console.log('✅ [SSE] Final callback completed');
+                } catch (callbackError) {
+                  console.error('❌ [SSE] Error in final callback:', callbackError);
+                }
+              }
+              
+              console.log('🔒 [SSE] Closing EventSource connection');
+              eventSource.close();
+              
+              if (result) {
+                console.log('✅ [SSE] Resolving promise with result');
+                resolve(result);
+              } else {
+                console.error('❌ [SSE] No result data received');
+                reject(new Error('No result data received'));
+              }
+              break;
+              
+            case 'error':
+              console.error('❌ [SSE] Error event received:', data.message);
+              console.error('❌ [SSE] Error details:', data);
+              eventSource.close();
+              reject(new Error(data.message || 'Unknown error occurred'));
+              break;
+              
+            default:
+              console.warn('⚠️ [SSE] Unknown event type:', data.type);
+              console.warn('⚠️ [SSE] Full data:', data);
+              break;
+          }
+        } catch (parseError) {
+          console.error('❌ [SSE] Error parsing SSE data:', parseError);
+          console.error('📋 [SSE] Raw event data that failed to parse:', event.data);
+          console.error('📋 [SSE] Parse error details:', parseError);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('❌ [SSE] Connection error occurred');
+        console.error('🔍 [SSE] Error event:', error);
+        console.error('🔍 [SSE] EventSource readyState:', eventSource.readyState);
+        console.error('🔍 [SSE] EventSource url:', eventSource.url);
+        console.error('🔍 [SSE] Connection was established:', connectionEstablished);
+        console.error('🔍 [SSE] Messages received before error:', messageCount);
+        
+        // 根据readyState判断错误类型
+        switch (eventSource.readyState) {
+          case EventSource.CONNECTING:
+            console.error('🔍 [SSE] State: CONNECTING (0) - Initial connection failed');
+            break;
+          case EventSource.OPEN:
+            console.error('🔍 [SSE] State: OPEN (1) - Connection was open but error occurred');
+            break;
+          case EventSource.CLOSED:
+            console.error('🔍 [SSE] State: CLOSED (2) - Connection is closed');
+            break;
+          default:
+            console.error('🔍 [SSE] State: Unknown state');
+        }
+        
+        eventSource.close();
+        reject(new Error('SSE Connection error'));
+      };
+
+      // 5分钟超时
+      const timeout = setTimeout(() => {
+        console.error('⏰ [SSE] Request timeout after 5 minutes');
+        console.error('⏰ [SSE] Messages received before timeout:', messageCount);
+        console.error('⏰ [SSE] Connection established:', connectionEstablished);
+        eventSource.close();
+        reject(new Error('Request timeout'));
+      }, 300000);
+
+      // 清理函数
+      const cleanup = () => {
+        console.log('🧹 [SSE] Cleaning up resources');
+        clearTimeout(timeout);
+        if (eventSource.readyState !== EventSource.CLOSED) {
+          eventSource.close();
+        }
+      };
+
+      // 确保在Promise完成时清理资源
+      Promise.resolve().then(() => {
+        return new Promise<void>((resolveCleanup) => {
+          const checkClosed = () => {
+            if (eventSource.readyState === EventSource.CLOSED) {
+              cleanup();
+              resolveCleanup();
+            } else {
+              setTimeout(checkClosed, 100);
+            }
+          };
+          checkClosed();
+        });
+      });
+      
+    } catch (error) {
+      console.error('❌ [SSE] Error in startDebateWithRealProgress:', error);
+      console.error('❌ [SSE] Error details:', error);
+      reject(error);
+    }
+  });
+};
+
+/**
+ * 发起辩论请求（带阶段更新回调 - 备用方案）
  * @param request 辩论请求参数
  * @param onStageUpdate 阶段更新回调
  * @returns Promise<DebateResult>
@@ -57,52 +292,88 @@ export const startDebate = async (
   request: DebateRequest, 
   onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string) => void
 ): Promise<DebateResult> => {
+  console.log('🚀 [Main] ========== Starting Debate ==========');
+  console.log('📋 [Main] Request:', JSON.stringify(request, null, 2));
+  console.log('🔄 [Main] Has stage callback:', !!onStageUpdate);
+  console.log('🕐 [Main] Start time:', new Date().toISOString());
+  
+  // 优先使用SSE版本，如果失败则回退到原版本
+  console.log('🎯 [Main] Attempting real progress feedback (SSE)...');
+  
   try {
-    // 模拟阶段更新（因为当前API不支持SSE，我们用定时器模拟）
-    let currentProgress = 0;
-    const stages: Array<'initial' | 'refined' | 'final'> = ['initial', 'refined', 'final'];
-    let currentStageIndex = 0;
+    const result = await startDebateWithRealProgress(request, onStageUpdate);
+    console.log('✅ [Main] Real progress feedback succeeded');
+    console.log('🎉 [Main] Final result received');
+    return result;
+  } catch (error) {
+    console.error('❌ [Main] SSE version failed:', error);
+    console.error('❌ [Main] Error details:', error);
+    console.log('🔄 [Main] Falling back to simulated progress...');
     
-    const updateInterval = setInterval(() => {
-      if (onStageUpdate && currentStageIndex < stages.length) {
-        const stage = stages[currentStageIndex];
-        const stageProgress = Math.min(currentProgress + Math.random() * 15, 90);
-        onStageUpdate(stage, stageProgress);
-        currentProgress = stageProgress;
+    // 回退到模拟版本
+    try {
+      console.log('⚡ [Fallback] Starting simulated progress version');
+      
+      // 模拟阶段更新（原有逻辑作为备用）
+      let currentProgress = 0;
+      const stages: Array<'initial' | 'refined' | 'final'> = ['initial', 'refined', 'final'];
+      let currentStageIndex = 0;
+      
+      if (onStageUpdate) {
+        console.log('🔄 [Fallback] Setting up simulated progress updates');
         
-        // 每30%进度切换到下一阶段
-        if (currentProgress >= (currentStageIndex + 1) * 30) {
-          currentStageIndex++;
+        const updateInterval = setInterval(() => {
+          if (currentStageIndex < stages.length) {
+            const stage = stages[currentStageIndex];
+            const stageProgress = Math.min(currentProgress + Math.random() * 15, 90);
+            
+            console.log(`🎯 [Fallback] Simulated progress: ${stage} ${stageProgress}%`);
+            onStageUpdate(stage, stageProgress);
+            currentProgress = stageProgress;
+            
+            // 每30%进度切换到下一阶段
+            if (currentProgress >= (currentStageIndex + 1) * 30) {
+              currentStageIndex++;
+              console.log(`➡️ [Fallback] Moving to stage index: ${currentStageIndex}`);
+            }
+          }
+        }, 1500);
+        
+        // 清理函数
+        setTimeout(() => {
+          clearInterval(updateInterval);
+          console.log('🧹 [Fallback] Cleared simulated progress interval');
+        }, 30000); // 30秒后自动清理
+      }
+
+      console.log('📤 [Fallback] Making API request to /debate');
+      const response = await api.post<DebateApiResponse>('/debate', request);
+      console.log('✅ [Fallback] API request completed');
+      
+      // 最终阶段完成
+      if (onStageUpdate) {
+        console.log('🎉 [Fallback] Setting final progress to 100%');
+        onStageUpdate('final', 100);
+      }
+      
+      if (response.data.success && response.data.data) {
+        console.log('✅ [Fallback] Debate completed successfully');
+        return response.data.data;
+      } else {
+        console.error('❌ [Fallback] API returned error:', response.data.error);
+        throw new Error(response.data.error || '辩论请求失败');
+      }
+    } catch (apiError) {
+      console.error('❌ [Fallback] Start debate error:', apiError);
+      
+      if (axios.isAxiosError(apiError)) {
+        if (apiError.response?.data?.error) {
+          throw new Error(apiError.response.data.error);
         }
       }
-    }, 1500);
-
-    const response = await api.post<DebateApiResponse>('/debate', request);
-    
-    // 清除定时器
-    clearInterval(updateInterval);
-    
-    // 最终阶段完成
-    if (onStageUpdate) {
-      onStageUpdate('final', 100);
+      
+      throw apiError;
     }
-    
-    if (response.data.success && response.data.data) {
-      return response.data.data;
-    } else {
-      throw new Error(response.data.error || '辩论请求失败');
-    }
-  } catch (error) {
-    console.error('Start debate error:', error);
-    
-    if (axios.isAxiosError(error)) {
-      if (error.response?.data?.error) {
-        throw new Error(error.response.data.error);
-      }
-    }
-    
-    // 重新抛出已处理的错误
-    throw error;
   }
 };
 
