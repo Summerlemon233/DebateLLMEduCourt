@@ -52,7 +52,8 @@ api.interceptors.response.use(
  */
 export async function startDebateWithRealProgress(
   request: DebateRequest,
-  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => void
+  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => void,
+  onStageComplete?: (stageNumber: number, stageData: any) => void
 ): Promise<DebateResult> {
   console.log('🚀 [SSE] Starting debate with real progress feedback');
   console.log('📋 [SSE] Request data:', request);
@@ -145,6 +146,18 @@ export async function startDebateWithRealProgress(
             case 'stage_complete':
               console.log(`✅ [SSE] Stage ${data.stage} completed with ${data.progress}% progress`);
               console.log(`✅ [SSE] Stage complete message: ${data.message}`);
+              console.log(`📊 [SSE] Stage data:`, data.stageData);
+              
+              // 处理阶段完成回调
+              if (onStageComplete && data.stageData) {
+                console.log(`🔄 [SSE] Calling onStageComplete for stage ${data.stage}`);
+                try {
+                  onStageComplete(data.stage, data.stageData);
+                  console.log(`✅ [SSE] Stage complete callback completed`);
+                } catch (callbackError) {
+                  console.error('❌ [SSE] Error in onStageComplete callback:', callbackError);
+                }
+              }
               
               if (onStageUpdate) {
                 const stageMap: { [key: number]: 'initial' | 'refined' | 'final' } = {
@@ -290,7 +303,8 @@ export async function startDebateWithRealProgress(
  */
 export const startDebate = async (
   request: DebateRequest, 
-  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string) => void
+  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string) => void,
+  onStageComplete?: (stageNumber: number, stageData: any) => void
 ): Promise<DebateResult> => {
   console.log('🚀 [Main] ========== Starting Debate ==========');
   console.log('📋 [Main] Request:', JSON.stringify(request, null, 2));
@@ -301,7 +315,7 @@ export const startDebate = async (
   console.log('🎯 [Main] Attempting real progress feedback (SSE)...');
   
   try {
-    const result = await startDebateWithRealProgress(request, onStageUpdate);
+    const result = await startDebateWithRealProgress(request, onStageUpdate, onStageComplete);
     console.log('✅ [Main] Real progress feedback succeeded');
     console.log('🎉 [Main] Final result received');
     return result;

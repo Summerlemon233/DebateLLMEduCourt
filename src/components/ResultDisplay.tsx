@@ -20,20 +20,26 @@ import type { ResultDisplayProps, DebateStage, LLMResponse } from '@/types';
 const { Title, Text, Paragraph } = Typography;
 
 const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
-  // 如果正在加载或没有结果，显示空状态
-  if (isLoading || !result) {
+  // 如果没有结果且不在加载中，显示空状态
+  if (!result && !isLoading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        {!isLoading && (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="提交问题后，AI辩论结果将在这里显示"
-            style={{ color: '#999' }}
-          />
-        )}
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="提交问题后，AI辩论结果将在这里显示"
+          style={{ color: '#999' }}
+        />
       </div>
     );
   }
+
+  // 如果在加载中但没有结果，不显示任何内容
+  if (isLoading && !result) {
+    return null;
+  }
+
+  // 此时result一定不为null
+  if (!result) return null;
 
   // 获取模型显示名称和图标
   const getModelInfo = (modelId: string) => {
@@ -455,7 +461,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
               fontSize: '24px',
               fontWeight: 'bold'
             }}>
-              {result.stages.length > 0 ? result.stages[0].responses.length : 0}
+              {result.stages.length > 0 ? result.stages[0].responses.length : (result.models?.length || 0)}
             </div>
             <Text style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>参与模型</Text>
           </div>
@@ -473,9 +479,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
               fontSize: '20px',
               fontWeight: 'bold'
             }}>
-              {Math.round(result.duration / 1000)}s
+              {isLoading ? '⏳' : `${Math.round(result.duration / 1000)}s`}
             </div>
-            <Text style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>辩论耗时</Text>
+            <Text style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>
+              {isLoading ? '进行中' : '辩论耗时'}
+            </Text>
           </div>
           <div>
             <div style={{
@@ -579,38 +587,57 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
       {/* 底部统计总结 */}
       <Card 
         style={{ 
-          background: 'linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%)',
-          border: '2px solid #91d5ff',
+          background: isLoading 
+            ? 'linear-gradient(135deg, #fff7e6 0%, #ffeaa7 100%)' 
+            : 'linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%)',
+          border: isLoading 
+            ? '2px solid #ffec3d' 
+            : '2px solid #91d5ff',
           borderRadius: '16px',
           textAlign: 'center',
-          boxShadow: '0 4px 16px rgba(24, 144, 255, 0.15)'
+          boxShadow: isLoading 
+            ? '0 4px 16px rgba(255, 193, 7, 0.15)' 
+            : '0 4px 16px rgba(24, 144, 255, 0.15)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '16px' }}>
           <div style={{
-            background: 'linear-gradient(135deg, #1890ff, #096dd9)',
+            background: isLoading 
+              ? 'linear-gradient(135deg, #ffc107, #ff8f00)' 
+              : 'linear-gradient(135deg, #1890ff, #096dd9)',
             padding: '12px',
             borderRadius: '12px',
             color: 'white',
             fontSize: '20px'
           }}>
-            🎉
+            {isLoading ? '⏳' : '🎉'}
           </div>
-          <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-            辩论总结
+          <Title level={3} style={{ margin: 0, color: isLoading ? '#ffc107' : '#1890ff' }}>
+            {isLoading ? '辩论进行中...' : '辩论总结'}
           </Title>
         </div>
         <Text style={{ fontSize: '16px', lineHeight: '1.8', color: '#333' }}>
-          本次辩论共有 <Text strong style={{ color: '#4facfe' }}>
-            {result.stages.length > 0 ? result.stages[0].responses.length : 0} 个AI模型
+          本次辩论{isLoading ? '正在进行，' : '共有'} <Text strong style={{ color: '#4facfe' }}>
+            {result.stages.length > 0 ? result.stages[0].responses.length : result.models?.length || 0} 个AI模型
           </Text> 参与，
-          历时 <Text strong style={{ color: '#52c41a' }}>
-            {Math.round(result.duration / 1000)} 秒
-          </Text>，
-          通过 <Text strong style={{ color: '#faad14' }}>
-            {result.stages.length}个阶段
-          </Text> 的深度讨论和验证，
-          为您提供了经过充分思辨的答案。
+          {!isLoading && (
+            <>
+              历时 <Text strong style={{ color: '#52c41a' }}>
+                {Math.round(result.duration / 1000)} 秒
+              </Text>，
+              通过 <Text strong style={{ color: '#faad14' }}>
+                {result.stages.length}个阶段
+              </Text> 的深度讨论和验证，
+              为您提供了经过充分思辨的答案。
+            </>
+          )}
+          {isLoading && (
+            <>
+              已完成 <Text strong style={{ color: '#faad14' }}>
+                {result.stages.length}个阶段
+              </Text> 的讨论{result.stages.length > 0 && '，正在继续深入分析中...'}
+            </>
+          )}
         </Text>
       </Card>
     </div>

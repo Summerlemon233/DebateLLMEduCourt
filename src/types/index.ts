@@ -111,6 +111,11 @@ export interface StageUpdateCallback {
   (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string): void;
 }
 
+// 阶段完成回调类型
+export interface StageCompleteCallback {
+  (stageNumber: number, stageData: DebateStage): void;
+}
+
 export interface DebateRequestWithCallback extends DebateRequest {
   onStageUpdate?: StageUpdateCallback;
 }

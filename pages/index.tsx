@@ -71,6 +71,7 @@ export default function HomePage() {
   // 状态管理
   const [selectedModels, setSelectedModels] = useState<string[]>(['deepseek', 'qwen', 'hunyuan']);
   const [debateResult, setDebateResult] = useState<DebateResult | null>(null);
+  const [partialResult, setPartialResult] = useState<DebateResult | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>({
     isLoading: false,
     currentStage: null,
@@ -92,6 +93,7 @@ export default function HomePage() {
 
     // 重置状态
     setDebateResult(null);
+    setPartialResult(null);
     setLoadingState({
       isLoading: true,
       currentStage: 'initial',
@@ -153,8 +155,44 @@ export default function HomePage() {
         console.log('🔄 [Frontend] ==========================================');
       };
 
+      // 阶段完成回调
+      const handleStageComplete = (stageNumber: number, stageData: any) => {
+        console.log(`🎯 [Frontend] ========== Stage ${stageNumber} Complete ==========`);
+        console.log('📊 [Frontend] Stage data received:', stageData);
+        
+        setPartialResult(prev => {
+          const newResult: DebateResult = prev || {
+            question: request.question,
+            models: request.models,
+            stages: [],
+            summary: '',
+            timestamp: new Date().toISOString(),
+            duration: 0
+          };
+          
+          // 创建新的stages数组，确保按顺序添加
+          const updatedStages = [...newResult.stages];
+          
+          // 确保阶段按顺序存储
+          const stageIndex = stageNumber - 1;
+          if (stageIndex >= 0) {
+            updatedStages[stageIndex] = stageData;
+          }
+          
+          console.log(`✅ [Frontend] Updated partial result with stage ${stageNumber}`);
+          console.log('📊 [Frontend] Current stages count:', updatedStages.length);
+          
+          return {
+            ...newResult,
+            stages: updatedStages
+          };
+        });
+        
+        console.log(`🎯 [Frontend] ==========================================`);
+      };
+
       // 发起辩论请求
-      const result = await startDebate(request, handleStageUpdate);
+      const result = await startDebate(request, handleStageUpdate, handleStageComplete);
 
       // 设置结果
       setDebateResult(result);
@@ -240,7 +278,7 @@ export default function HomePage() {
 
             {/* 结果展示 */}
             <ResultDisplay
-              result={debateResult}
+              result={debateResult || partialResult}
               isLoading={loadingState.isLoading}
             />
           </Content>

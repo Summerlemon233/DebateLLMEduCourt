@@ -413,7 +413,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const stage1 = await runStage1WithProgress(factory, question, models, sendSSE);
       result.stages.push(stage1);
       
-      sendSSE('message', { type: 'stage_complete', stage: 1, progress: 35, message: '✅ 阶段1完成：初始观点已收集' });
+      sendSSE('message', { 
+        type: 'stage_complete', 
+        stage: 1, 
+        progress: 35, 
+        message: '✅ 阶段1完成：初始观点已收集',
+        stageData: stage1
+      });
 
       // 阶段2：交叉质疑与完善 (35-70%)
       sendSSE('message', { type: 'stage_start', stage: 2, progress: 35, message: '🔄 阶段2：观点交互与完善' });
@@ -421,7 +427,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const stage2 = await runStage2WithProgress(factory, question, models, stage1, sendSSE);
       result.stages.push(stage2);
       
-      sendSSE('message', { type: 'stage_complete', stage: 2, progress: 70, message: '✅ 阶段2完成：观点已完善' });
+      sendSSE('message', { 
+        type: 'stage_complete', 
+        stage: 2, 
+        progress: 70, 
+        message: '✅ 阶段2完成：观点已完善',
+        stageData: stage2
+      });
 
       // 阶段3：最终验证 (70-100%)
       sendSSE('message', { type: 'stage_start', stage: 3, progress: 70, message: '🎊 阶段3：最终验证与总结' });
@@ -429,7 +441,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const stage3 = await runStage3WithProgress(factory, question, models, stage1, stage2, sendSSE);
       result.stages.push(stage3);
       
-      sendSSE('message', { type: 'stage_complete', stage: 3, progress: 90, message: '✅ 阶段3完成：最终观点已生成' });
+      sendSSE('message', { 
+        type: 'stage_complete', 
+        stage: 3, 
+        progress: 90, 
+        message: '✅ 阶段3完成：最终观点已生成',
+        stageData: stage3
+      });
 
       // 生成总结
       sendSSE('message', { type: 'stage_progress', stage: 3, progress: 95, message: '📝 正在生成辩论总结...' });
