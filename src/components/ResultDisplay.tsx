@@ -31,7 +31,6 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
   // 获取模型显示名称
   const getModelName = (modelId: string) => {
     const modelNames: { [key: string]: string } = {
-      'gemini-pro': 'Google Gemini Pro',
       'deepseek-chat': 'DeepSeek Chat',
       'qwen-max': 'Qwen Max',
       'doubao-pro': 'Doubao Pro',

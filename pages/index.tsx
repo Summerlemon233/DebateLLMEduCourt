@@ -21,15 +21,6 @@ const { Header, Content } = Layout;
 // 预定义的模型配置
 const DEFAULT_MODELS: ModelConfig[] = [
   {
-    id: 'gemini',
-    name: 'Google Gemini',
-    provider: 'Google',
-    description: '谷歌的多模态大模型，擅长推理和创新思维',
-    maxTokens: 4096,
-    temperature: 0.7,
-    enabled: true,
-  },
-  {
     id: 'deepseek',
     name: 'DeepSeek',
     provider: 'DeepSeek',
@@ -78,7 +69,7 @@ const DEFAULT_MODELS: ModelConfig[] = [
 
 export default function HomePage() {
   // 状态管理
-  const [selectedModels, setSelectedModels] = useState<string[]>(['gemini', 'deepseek', 'qwen']);
+  const [selectedModels, setSelectedModels] = useState<string[]>(['deepseek', 'qwen', 'hunyuan']);
   const [debateResult, setDebateResult] = useState<DebateResult | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>({
     isLoading: false,

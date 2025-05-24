@@ -1,5 +1,4 @@
 import { BaseLLMClient } from './base';
-import { GeminiClient } from './gemini';
 import { DeepSeekClient } from './deepseek';
 import { QwenClient } from './qwen';
 import { DoubaoClient } from './doubao';
@@ -7,10 +6,9 @@ import { ChatGLMClient } from './chatglm';
 import { HunyuanClient } from './hunyuan_new';
 import { DebateError } from '../utils/error-handler';
 
-export type LLMProvider = 'gemini' | 'deepseek' | 'qwen' | 'doubao' | 'chatglm' | 'hunyuan';
+export type LLMProvider = 'deepseek' | 'qwen' | 'doubao' | 'chatglm' | 'hunyuan';
 
 interface LLMConfig {
-  gemini?: string;
   deepseek?: string;
   qwen?: string;
   doubao?: string;
@@ -29,11 +27,6 @@ export class LLMFactory {
 
   private initializeClients(): void {
     try {
-      // Google Gemini
-      if (this.config.gemini) {
-        this.clients.set('gemini', new GeminiClient({ apiKey: this.config.gemini }));
-      }
-
       // DeepSeek
       if (this.config.deepseek) {
         this.clients.set('deepseek', new DeepSeekClient({ apiKey: this.config.deepseek }));
@@ -130,10 +123,6 @@ export class LLMFactory {
     const config: LLMConfig = {};
 
     // 从环境变量读取API密钥
-    if (process.env.GEMINI_API_KEY) {
-      config.gemini = process.env.GEMINI_API_KEY;
-    }
-
     if (process.env.DEEPSEEK_API_KEY) {
       config.deepseek = process.env.DEEPSEEK_API_KEY;
     }
