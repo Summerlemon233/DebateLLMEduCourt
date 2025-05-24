@@ -1,0 +1,68 @@
+/* 打印样式 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .results-container,
+  .results-container * {
+    visibility: visible;
+  }
+  
+  .results-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+    color: black !important;
+  }
+  
+  .app-header,
+  .question-section,
+  .model-selector-section,
+  .result-actions,
+  .intro-card,
+  .particles-container {
+    display: none !important;
+  }
+  
+  .model-response {
+    page-break-inside: avoid;
+    border: 1px solid #ddd !important;
+    margin-bottom: 15px !important;
+  }
+  
+  .summary-container {
+    page-break-inside: avoid;
+  }
+  
+  .debate-stage {
+    margin-bottom: 20px !important;
+  }
+  
+  .response-header {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+  }
+  
+  .model-avatar {
+    color: white !important;
+  }
+  
+  code, pre {
+    background-color: #f0f0f0 !important;
+    border: 1px solid #ddd !important;
+  }
+  
+  /* 添加页眉和页脚 */
+  @page {
+    margin: 2cm;
+    @top-center {
+      content: "多LLM辩论教育平台 - 辩论结果";
+    }
+    @bottom-center {
+      content: "页码 " counter(page) " / " counter(pages);
+    }
+  }
+}

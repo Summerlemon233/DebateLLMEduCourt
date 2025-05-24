@@ -1,25 +1,240 @@
-import React from 'react';
-import { Card, Typography, Timeline, Badge, Empty, Divider, Tag, Space } from 'antd';
+import React, { useState, useRef } from 'react';
+import { Typography, Tag, Space, Tabs, Empty, Button, message, Tooltip, Modal } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RobotOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  SafetyOutlined,
-  BulbOutlined,
-  ExclamationCircleOutlined,
-  CrownOutlined,
   StarOutlined,
-  TrophyOutlined
+  TrophyOutlined,
+  CheckCircleOutlined,
+  FileDoneOutlined,
+  ThunderboltOutlined,
+  SyncOutlined,
+  SafetyOutlined,
+  ShareAltOutlined,
+  CopyOutlined,
+  PrinterOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
+  AudioOutlined
 } from '@ant-design/icons';
-import type { ResultDisplayProps, DebateStage, LLMResponse } from '@/types';
+import type { DebateResult, DebateStage, LLMResponse } from '../types';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
+const { TabPane } = Tabs;
+
+interface ResultDisplayProps {
+  result: DebateResult | null;
+  isLoading: boolean;
+}
 
 const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
+  const [selectedStage, setSelectedStage] = useState<number>(0);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
+  const resultContainerRef = useRef<HTMLDivElement>(null);
+
+  // 分享结果功能
+  const handleShare = async () => {
+    if (!result) return;
+    
+    try {
+      // 构建要分享的文本
+      const shareText = `
+多LLM辩论教育平台 - 辩论结果
+
+问题: ${result.question}
+
+${result.summary ? `总结: ${result.summary}` : ''}
+      `.trim();
+      
+      // 检查Web Share API是否可用
+      if (navigator.share) {
+        await navigator.share({
+          title: '多LLM辩论结果',
+          text: shareText,
+        });
+        message.success('分享成功！');
+      } else {
+        // 如果不支持分享API，则复制到剪贴板
+        await navigator.clipboard.writeText(shareText);
+        message.success('已复制到剪贴板，现在您可以粘贴分享');
+      }
+    } catch (error) {
+      console.error('分享失败:', error);
+      message.error('分享失败，请稍后再试');
+    }
+  };
+  
+  // 复制结果
+  const handleCopy = async () => {
+    if (!result) return;
+    
+    try {
+      // 构建要复制的文本
+      const copyText = `
+# 多LLM辩论教育平台 - 辩论结果
+
+## 问题
+${result.question}
+
+## 参与模型
+${result.models.join(', ')}
+
+${result.stages.map((stage, index) => `
+## ${index === 0 ? '初始提案阶段' : index === 1 ? '交叉审视阶段' : '最终验证阶段'}
+${stage.responses.map(r => `
+### ${getModelInfo(r.model).name}
+${r.content}
+`).join('\n')}
+`).join('\n')}
+
+## 总结
+${result.summary || '无总结'}
+      `.trim();
+      
+      await navigator.clipboard.writeText(copyText);
+      message.success('已复制到剪贴板');
+    } catch (error) {
+      console.error('复制失败:', error);
+      message.error('复制失败，请稍后再试');
+    }
+  };
+  
+  // 打印结果
+  const handlePrint = () => {
+    window.print();
+  };
+  
+  // 语音朗读功能
+  const handleSpeakResult = () => {
+    if (!result) return;
+    
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    
+    setIsSpeaking(true);
+    
+    // 构建朗读文本
+    const speakText = `
+      问题: ${result.question}.
+      
+      总结: ${result.summary || '无总结'}
+    `.trim();
+    
+    const utterance = new SpeechSynthesisUtterance(speakText);
+    utterance.lang = 'zh-CN';
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      message.error('语音朗读失败');
+    };
+    
+    window.speechSynthesis.speak(utterance);
+  };
+  
+  // 导出为文本文件
+  const handleExportText = () => {
+    if (!result) return;
+    
+    const exportText = `
+# 多LLM辩论教育平台 - 辩论结果
+
+## 问题
+${result.question}
+
+## 参与模型
+${result.models.join(', ')}
+
+${result.stages.map((stage, index) => `
+## ${index === 0 ? '初始提案阶段' : index === 1 ? '交叉审视阶段' : '最终验证阶段'}
+${stage.responses.map(r => `
+### ${getModelInfo(r.model).name}
+${r.content}
+`).join('\n')}
+`).join('\n')}
+
+## 总结
+${result.summary || '无总结'}
+    `.trim();
+    
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    
+    a.href = url;
+    a.download = `辩论结果_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    setIsExportModalVisible(false);
+    message.success('导出成功！');
+  };
+  
+  // 导出模态框
+  const renderExportModal = () => (
+    <Modal
+      title="导出辩论结果"
+      open={isExportModalVisible}
+      onCancel={() => setIsExportModalVisible(false)}
+      footer={null}
+      width={400}
+    >
+      <div style={{ padding: '20px 0' }}>
+        <div style={{ marginBottom: '20px' }}>选择导出格式：</div>
+        
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Button 
+            icon={<FileTextOutlined />} 
+            onClick={handleExportText}
+            style={{ width: '100%', textAlign: 'left', height: 'auto', padding: '10px 15px' }}
+          >
+            <div>
+              <div style={{ fontWeight: 'bold' }}>文本文档 (.txt)</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>
+                导出为纯文本格式，易于阅读和分享
+              </div>
+            </div>
+          </Button>
+          
+          <Button 
+            icon={<CopyOutlined />} 
+            onClick={handleCopy}
+            style={{ width: '100%', textAlign: 'left', height: 'auto', padding: '10px 15px' }}
+          >
+            <div>
+              <div style={{ fontWeight: 'bold' }}>复制到剪贴板</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>
+                复制格式化文本，可直接粘贴到其他应用
+              </div>
+            </div>
+          </Button>
+          
+          <Button 
+            icon={<PrinterOutlined />} 
+            onClick={handlePrint}
+            style={{ width: '100%', textAlign: 'left', height: 'auto', padding: '10px 15px' }}
+          >
+            <div>
+              <div style={{ fontWeight: 'bold' }}>打印结果</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-light)' }}>
+                打开打印预览，可保存为PDF或打印
+              </div>
+            </div>
+          </Button>
+        </Space>
+      </div>
+    </Modal>
+  );
+
   // 如果没有结果且不在加载中，显示空状态
   if (!result && !isLoading) {
     return (
@@ -27,7 +242,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description="提交问题后，AI辩论结果将在这里显示"
-          style={{ color: '#999' }}
+          style={{ color: 'var(--text-light)' }}
         />
       </div>
     );
@@ -44,16 +259,16 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
   // 获取模型显示名称和图标
   const getModelInfo = (modelId: string) => {
     const modelInfoMap: { [key: string]: { name: string; icon: React.ReactNode; color: string; tier: string } } = {
-      'deepseek': { name: 'DeepSeek Chat', icon: <RobotOutlined />, color: '#4facfe', tier: 'Pro' },
-      'qwen': { name: 'Qwen (通义千问)', icon: <StarOutlined />, color: '#ff7a45', tier: 'Max' },
-      'doubao': { name: 'Doubao (豆包)', icon: <BulbOutlined />, color: '#722ed1', tier: 'Pro' },
-      'chatglm': { name: 'ChatGLM', icon: <TrophyOutlined />, color: '#13c2c2', tier: 'Elite' },
-      'hunyuan': { name: 'Tencent Hunyuan', icon: <CrownOutlined />, color: '#52c41a', tier: 'Premium' }
+      'deepseek': { name: 'DeepSeek Chat', icon: <RobotOutlined />, color: 'var(--primary-color)', tier: 'Pro' },
+      'qwen': { name: 'Qwen (通义千问)', icon: <StarOutlined />, color: 'var(--secondary-color)', tier: 'Max' },
+      'doubao': { name: 'Doubao (豆包)', icon: <RobotOutlined />, color: 'var(--tertiary-color)', tier: 'Pro' },
+      'chatglm': { name: 'ChatGLM', icon: <TrophyOutlined />, color: 'var(--accent-color)', tier: 'Elite' },
+      'hunyuan': { name: 'Tencent Hunyuan', icon: <RobotOutlined />, color: 'var(--primary-color)', tier: 'Premium' }
     };
     return modelInfoMap[modelId] || { 
       name: modelId, 
       icon: <RobotOutlined />, 
-      color: '#666666', 
+      color: 'var(--text-primary)', 
       tier: 'Standard' 
     };
   };
@@ -68,9 +283,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           language={match[1]}
           PreTag="div"
           customStyle={{
-            borderRadius: '8px',
+            borderRadius: '12px',
             fontSize: '14px',
             margin: '16px 0',
+            maxHeight: '400px',
           }}
           {...props}
         >
@@ -80,11 +296,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         <code 
           className={className} 
           style={{
-            background: '#f6f8fa',
+            background: 'var(--bg-tertiary)',
             padding: '2px 6px',
             borderRadius: '4px',
             fontSize: '0.9em',
-            color: '#e83e8c'
+            color: 'var(--primary-color)'
           }}
           {...props}
         >
@@ -93,47 +309,24 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
       );
     },
     h1: ({ children }: any) => (
-      <Typography.Title level={2} style={{ color: '#1890ff', marginTop: '24px' }}>
+      <Typography.Title level={2} style={{ color: 'var(--primary-color)', marginTop: '24px' }}>
         {children}
       </Typography.Title>
     ),
     h2: ({ children }: any) => (
-      <Typography.Title level={3} style={{ color: '#722ed1', marginTop: '20px' }}>
+      <Typography.Title level={3} style={{ color: 'var(--secondary-color)', marginTop: '20px' }}>
         {children}
       </Typography.Title>
     ),
     h3: ({ children }: any) => (
-      <Typography.Title level={4} style={{ color: '#13c2c2', marginTop: '16px' }}>
+      <Typography.Title level={4} style={{ color: 'var(--tertiary-color)', marginTop: '16px' }}>
         {children}
       </Typography.Title>
     ),
     p: ({ children }: any) => (
-      <Typography.Paragraph style={{ marginBottom: '12px', lineHeight: '1.8' }}>
+      <Typography.Paragraph style={{ marginBottom: '16px', lineHeight: '1.8', fontSize: '1rem', color: 'var(--text-primary)' }}>
         {children}
       </Typography.Paragraph>
-    ),
-    blockquote: ({ children }: any) => (
-      <div style={{
-        borderLeft: '4px solid #1890ff',
-        paddingLeft: '16px',
-        margin: '16px 0',
-        background: '#f6f8fa',
-        padding: '12px 16px',
-        borderRadius: '0 8px 8px 0',
-        fontStyle: 'italic'
-      }}>
-        {children}
-      </div>
-    ),
-    ul: ({ children }: any) => (
-      <ul style={{ paddingLeft: '20px', marginBottom: '16px' }}>
-        {children}
-      </ul>
-    ),
-    li: ({ children }: any) => (
-      <li style={{ marginBottom: '8px', lineHeight: '1.6' }}>
-        {children}
-      </li>
     ),
   };
 
@@ -147,14 +340,14 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     });
   };
 
-  // 获取模型响应的状态标签 - 基于内容判断成功/失败
-  const getResponseStatusBadge = (response: LLMResponse) => {
-    const hasContent = response.content && response.content.trim().length > 0;
-    if (hasContent) {
-      return <Badge status="success" text="成功" />;
-    } else {
-      return <Badge status="error" text="失败" />;
-    }
+  // 根据阶段获取图标
+  const getStageIcon = (stageIndex: number) => {
+    const icons = [
+      <ThunderboltOutlined key="1" style={{ color: 'var(--primary-color)' }} />,
+      <SyncOutlined key="2" style={{ color: 'var(--secondary-color)' }} />,
+      <SafetyOutlined key="3" style={{ color: 'var(--tertiary-color)' }} />
+    ];
+    return icons[stageIndex] || icons[0];
   };
 
   // 渲染单个模型响应
@@ -163,483 +356,161 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     const modelInfo = getModelInfo(response.model);
     
     return (
-      <Card
+      <motion.div
         key={`${response.model}-${index}`}
-        size="small"
-        style={{
-          marginBottom: '20px',
-          border: hasContent ? `2px solid ${modelInfo.color}20` : '2px solid #ffccc7',
-          background: hasContent ? 'white' : '#fff2f0',
-          borderRadius: '12px',
-          boxShadow: hasContent 
-            ? `0 8px 24px ${modelInfo.color}15, 0 0 0 1px ${modelInfo.color}10` 
-            : '0 4px 12px rgba(255, 77, 79, 0.15)',
-          transition: 'all 0.3s ease',
-          overflow: 'hidden'
-        }}
-        className="model-response-card"
+        className="model-response"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.1 }}
       >
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            padding: '8px 0'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                background: `linear-gradient(135deg, ${modelInfo.color}, ${modelInfo.color}80)`,
-                padding: '8px',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '16px'
-              }}>
-                {modelInfo.icon}
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Text strong style={{ fontSize: '16px', color: '#333' }}>
-                    {modelInfo.name}
-                  </Text>
-                  <Tag 
-                    color={modelInfo.color} 
-                    style={{ 
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontWeight: 600
-                    }}
-                  >
-                    {modelInfo.tier}
-                  </Tag>
-                </div>
-                <div style={{ marginTop: '2px' }}>
-                  {getResponseStatusBadge(response)}
-                </div>
-              </div>
+        <div className="response-header">
+          <div className="model-info">
+            <div className="model-avatar" style={{ background: modelInfo.color }}>
+              {response.model.charAt(0).toUpperCase()}
             </div>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              <ClockCircleOutlined style={{ marginRight: '4px' }} />
-              {formatTimestamp(response.timestamp)}
-            </Text>
+            <div>
+              <div className="model-name">{modelInfo.name}</div>
+              <div className="model-provider">{modelInfo.tier}</div>
+            </div>
           </div>
+          <span className="response-timestamp">
+            {response.timestamp ? formatTimestamp(response.timestamp) : '处理中...'}
+          </span>
         </div>
-
-        {hasContent ? (
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #fafbfc, #f8f9fa)',
-              padding: '20px',
-              borderRadius: '12px',
-              marginBottom: 0,
-              border: '1px solid #e1e5e9',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '3px',
-              background: `linear-gradient(90deg, ${modelInfo.color}, ${modelInfo.color}60)`
-            }} />
-            <ReactMarkdown
+        
+        <div className="response-content">
+          {hasContent ? (
+            <ReactMarkdown 
+              components={MarkdownComponents as any}
               remarkPlugins={[remarkGfm]}
-              components={MarkdownComponents}
             >
               {response.content}
             </ReactMarkdown>
-          </div>
-        ) : (
-          <div style={{
-            background: 'linear-gradient(135deg, #fff2f0, #ffebe8)',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '2px solid #ffccc7',
-            textAlign: 'center'
-          }}>
-            <Text type="danger" style={{ fontSize: '14px' }}>
-              <ExclamationCircleOutlined style={{ marginRight: '8px', fontSize: '16px' }} />
-              模型响应失败或内容为空
-            </Text>
-          </div>
-        )}
-      </Card>
+          ) : (
+            <Text type="secondary" style={{ fontStyle: 'italic' }}>模型响应为空，可能发生了错误。</Text>
+          )}
+        </div>
+      </motion.div>
     );
   };
 
   // 渲染辩论阶段
-  const renderDebateStage = (
-    stage: DebateStage,
-    stageNumber: number,
-    title: string,
-    description: string,
-    icon: React.ReactNode,
-    color: string
-  ) => {
+  const renderDebateStage = (stage: DebateStage, stageIndex: number) => {
+    const stageNames = [
+      "初始提案阶段", 
+      "交叉审视阶段", 
+      "最终验证阶段"
+    ];
+    
+    const stageName = stageNames[stageIndex] || `阶段 ${stageIndex + 1}`;
+    
     return (
-      <div style={{ marginBottom: '40px' }}>
-        <div style={{ 
-          background: `linear-gradient(135deg, ${color}15, ${color}05)`,
-          padding: '24px',
-          borderRadius: '16px',
-          border: `2px solid ${color}20`,
-          marginBottom: '24px',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          {/* 装饰性背景元素 */}
-          <div style={{
-            position: 'absolute',
-            top: '-20px',
-            right: '-20px',
-            width: '80px',
-            height: '80px',
-            background: `${color}10`,
-            borderRadius: '50%',
-            opacity: 0.5
-          }} />
-          <div style={{
-            position: 'absolute',
-            bottom: '-30px',
-            left: '-30px',
-            width: '100px',
-            height: '100px',
-            background: `${color}08`,
-            borderRadius: '50%',
-            opacity: 0.3
-          }} />
-          
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '16px',
-            position: 'relative',
-            zIndex: 1
-          }}>
-            <div style={{
-              background: `linear-gradient(135deg, ${color}, ${color}80)`,
-              padding: '16px',
-              borderRadius: '16px',
-              color: 'white',
-              fontSize: '24px',
-              boxShadow: `0 8px 24px ${color}30`
-            }}>
-              {icon}
-            </div>
-            <div style={{ flex: 1 }}>
-              <Title level={2} style={{ margin: 0, color, fontSize: '24px' }}>
-                {title}
-              </Title>
-              <Text style={{ 
-                display: 'block', 
-                color: '#666', 
-                fontSize: '16px',
-                marginTop: '8px',
-                lineHeight: '1.6'
-              }}>
-                {description}
-              </Text>
-            </div>
-            <Space>
-              <Tag 
-                color={color} 
-                style={{ 
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  fontSize: '14px',
-                  fontWeight: 600
-                }}
-              >
-                阶段 {stageNumber}
-              </Tag>
-              <Tag 
-                style={{ 
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  background: '#f0f0f0',
-                  border: 'none'
-                }}
-              >
-                {formatTimestamp(stage.startTime)}
-              </Tag>
-            </Space>
+      <motion.div 
+        key={`stage-${stageIndex}`}
+        className="debate-stage"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: stageIndex * 0.1 }}
+      >
+        <div className="stage-header">
+          <div className="stage-number">{stageIndex + 1}</div>
+          <div className="stage-name">
+            {stageName}
           </div>
         </div>
-
-        {/* 模型响应列表 */}
-        <div style={{ 
-          display: 'grid',
-          gap: '20px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))'
-        }}>
+        <div className="stage-content">
           {stage.responses.map((response, index) => 
             renderModelResponse(response, index)
           )}
         </div>
-      </div>
+      </motion.div>
     );
   };
 
   return (
-    <div className="results-container fade-in" style={{ padding: '20px 0' }}>
-      {/* 头部标题 */}
-      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <Title level={1} style={{ 
-          background: 'linear-gradient(135deg, #4facfe, #00f2fe)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          fontSize: '36px',
-          fontWeight: 'bold',
-          marginBottom: '8px'
-        }}>
-          <BulbOutlined style={{ marginRight: '12px', color: '#4facfe' }} />
-          AI辩论结果
-        </Title>
-        <Text style={{ fontSize: '16px', color: '#666' }}>
-          通过多AI模型的深度讨论，为您提供全面的答案视角
-        </Text>
-      </div>
-
-      {/* 问题展示卡片 */}
-      <Card style={{ 
-        marginBottom: '32px', 
-        background: 'linear-gradient(135deg, #f0f9ff, #e6f7ff)',
-        border: '2px solid #91d5ff',
-        borderRadius: '16px',
-        boxShadow: '0 8px 24px rgba(24, 144, 255, 0.15)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #1890ff, #096dd9)',
-            padding: '12px',
-            borderRadius: '12px',
-            color: 'white',
-            fontSize: '20px'
-          }}>
-            🤔
-          </div>
-          <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-            讨论问题
-          </Title>
-        </div>
-        <Text style={{ 
-          fontSize: '18px', 
-          lineHeight: '1.8',
-          color: '#333',
-          fontWeight: 500
-        }}>
-          {result.question}
-        </Text>
-      </Card>
-
-      {/* 辩论统计信息 */}
-      <Card style={{ 
-        marginBottom: '40px',
-        borderRadius: '16px',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-around', 
-          textAlign: 'center',
-          padding: '16px 0'
-        }}>
-          <div>
-            <div style={{
-              background: 'linear-gradient(135deg, #4facfe, #00f2fe)',
-              width: '60px',
-              height: '60px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              color: 'white',
-              fontSize: '24px',
-              fontWeight: 'bold'
-            }}>
-              {result.stages.length > 0 ? result.stages[0].responses.length : (result.models?.length || 0)}
-            </div>
-            <Text style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>参与模型</Text>
-          </div>
-          <div>
-            <div style={{
-              background: 'linear-gradient(135deg, #52c41a, #389e0d)',
-              width: '60px',
-              height: '60px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              color: 'white',
-              fontSize: '20px',
-              fontWeight: 'bold'
-            }}>
-              {isLoading ? '⏳' : `${Math.round(result.duration / 1000)}s`}
-            </div>
-            <Text style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>
-              {isLoading ? '进行中' : '辩论耗时'}
-            </Text>
-          </div>
-          <div>
-            <div style={{
-              background: 'linear-gradient(135deg, #faad14, #d48806)',
-              width: '60px',
-              height: '60px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              color: 'white',
-              fontSize: '24px',
-              fontWeight: 'bold'
-            }}>
-              {result.stages.length}
-            </div>
-            <Text style={{ fontSize: '14px', color: '#666', fontWeight: 500 }}>辩论阶段</Text>
-          </div>
-        </div>
-      </Card>
-
-      {/* 渲染所有辩论阶段 */}
-      <div style={{ marginBottom: '40px' }}>
-        {result.stages.map((stage, index) => {
-          const stageConfigs = [
-            {
-              title: '🎯 阶段一：初始提案',
-              description: '各个AI模型基于问题独立提供初始回答',
-              icon: <RobotOutlined style={{ fontSize: '20px' }} />,
-              color: '#4facfe'
-            },
-            {
-              title: '🔄 阶段二：交叉审视与修正',
-              description: '模型们互相审视其他模型的回答，并对自己的答案进行修正和优化',
-              icon: <RobotOutlined style={{ fontSize: '20px' }} />,
-              color: '#faad14'
-            },
-            {
-              title: '✅ 阶段三：最终验证与综合',
-              description: '综合所有观点，提供最终的准确答案',
-              icon: <SafetyOutlined style={{ fontSize: '20px' }} />,
-              color: '#52c41a'
-            }
-          ];
-
-          const config = stageConfigs[index] || stageConfigs[stageConfigs.length - 1];
-          
-          return renderDebateStage(
-            stage,
-            index + 1,
-            config.title,
-            config.description,
-            config.icon,
-            config.color
-          );
-        })}
-      </div>
-
-      {/* 最终总结卡片 */}
-      {result.summary && (
-        <Card 
-          style={{ 
-            marginBottom: '32px',
-            background: 'linear-gradient(135deg, #f6f9fc, #e8f5e8)',
-            border: '2px solid #52c41a20',
-            borderRadius: '16px',
-            boxShadow: '0 8px 24px rgba(82, 196, 26, 0.15)'
-          }}
+    <div className="results-container">
+      <motion.div
+        className="result-title"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        辩论结果
+      </motion.div>
+      
+      <motion.div 
+        className="question-display"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <strong>问题：</strong> {result.question}
+      </motion.div>
+      
+      {/* 显示各个阶段的辩论 */}
+      <AnimatePresence>
+        {result.stages.map((stage, index) => 
+          renderDebateStage(stage, index)
+        )}
+      </AnimatePresence>
+      
+      {/* 总结部分 */}
+      {result.summary && !isLoading && (
+        <motion.div 
+          className="summary-container"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #52c41a, #389e0d)',
-              padding: '12px',
-              borderRadius: '12px',
-              color: 'white',
-              fontSize: '20px'
-            }}>
-              🏆
+          <div className="summary-header">
+            <div className="summary-icon">
+              <CheckCircleOutlined />
             </div>
-            <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
-              AI辩论总结
-            </Title>
+            <div className="summary-title">辩论总结</div>
           </div>
-          <div style={{
-            background: 'white',
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid #f0f0f0'
-          }}>
-            <ReactMarkdown
+          <div className="summary-content">
+            <ReactMarkdown 
+              components={MarkdownComponents as any}
               remarkPlugins={[remarkGfm]}
-              components={MarkdownComponents}
             >
               {result.summary}
             </ReactMarkdown>
           </div>
-        </Card>
+        </motion.div>
       )}
 
-      {/* 底部统计总结 */}
-      <Card 
-        style={{ 
-          background: isLoading 
-            ? 'linear-gradient(135deg, #fff7e6 0%, #ffeaa7 100%)' 
-            : 'linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%)',
-          border: isLoading 
-            ? '2px solid #ffec3d' 
-            : '2px solid #91d5ff',
-          borderRadius: '16px',
-          textAlign: 'center',
-          boxShadow: isLoading 
-            ? '0 4px 16px rgba(255, 193, 7, 0.15)' 
-            : '0 4px 16px rgba(24, 144, 255, 0.15)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center', marginBottom: '16px' }}>
-          <div style={{
-            background: isLoading 
-              ? 'linear-gradient(135deg, #ffc107, #ff8f00)' 
-              : 'linear-gradient(135deg, #1890ff, #096dd9)',
-            padding: '12px',
-            borderRadius: '12px',
-            color: 'white',
-            fontSize: '20px'
-          }}>
-            {isLoading ? '⏳' : '🎉'}
-          </div>
-          <Title level={3} style={{ margin: 0, color: isLoading ? '#ffc107' : '#1890ff' }}>
-            {isLoading ? '辩论进行中...' : '辩论总结'}
-          </Title>
-        </div>
-        <Text style={{ fontSize: '16px', lineHeight: '1.8', color: '#333' }}>
-          本次辩论{isLoading ? '正在进行，' : '共有'} <Text strong style={{ color: '#4facfe' }}>
-            {result.stages.length > 0 ? result.stages[0].responses.length : result.models?.length || 0} 个AI模型
-          </Text> 参与，
-          {!isLoading && (
-            <>
-              历时 <Text strong style={{ color: '#52c41a' }}>
-                {Math.round(result.duration / 1000)} 秒
-              </Text>，
-              通过 <Text strong style={{ color: '#faad14' }}>
-                {result.stages.length}个阶段
-              </Text> 的深度讨论和验证，
-              为您提供了经过充分思辨的答案。
-            </>
-          )}
-          {isLoading && (
-            <>
-              已完成 <Text strong style={{ color: '#faad14' }}>
-                {result.stages.length}个阶段
-              </Text> 的讨论{result.stages.length > 0 && '，正在继续深入分析中...'}
-            </>
-          )}
-        </Text>
-      </Card>
+      {/* 操作按钮 */}
+      <div className="result-actions">
+        <Button 
+          type="primary" 
+          icon={<ShareAltOutlined />} 
+          onClick={handleShare}
+          style={{ marginRight: '12px' }}
+        >
+          分享结果
+        </Button>
+        
+        <Button 
+          type="default" 
+          icon={<FileDoneOutlined />} 
+          onClick={() => setIsExportModalVisible(true)}
+          style={{ marginRight: '12px' }}
+        >
+          导出结果
+        </Button>
+        
+        <Button 
+          type="default" 
+          icon={isSpeaking ? <AudioOutlined /> : <AudioOutlined />} 
+          onClick={handleSpeakResult}
+          loading={isSpeaking}
+        >
+          {isSpeaking ? '停止朗读' : '语音朗读'}
+        </Button>
+      </div>
+
+      {/* 导出模态框 */}
+      {renderExportModal()}
     </div>
   );
 };

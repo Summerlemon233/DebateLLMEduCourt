@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import '../src/styles/globals.css';
+import '../src/styles/print.css';
 
 // Ant Design 主题配置
 const theme = {

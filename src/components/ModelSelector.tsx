@@ -1,21 +1,11 @@
 import React from 'react';
-import { Card, Checkbox, Row, Col, Typography, Badge } from 'antd';
-import { 
-  RobotOutlined, 
-  ExperimentOutlined
-} from '@ant-design/icons';
-
-const { Title, Text } = Typography;
+import { Checkbox } from 'antd';
+import { motion } from 'framer-motion';
+import { CheckCircleFilled, ExperimentOutlined } from '@ant-design/icons';
+import type { ModelConfig } from '../types';
 
 interface ModelSelectorProps {
-  models: Array<{
-    id: string;
-    name: string;
-    provider: string;
-    description: string;
-    enabled: boolean;
-    maxTokens?: number;
-  }>;
+  models: ModelConfig[];
   selectedModels: string[];
   onModelChange: (selectedModels: string[]) => void;
   disabled: boolean;
@@ -45,106 +35,138 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       'ByteDance': '🔴',
       'Tencent': '🟡',
       'Zhipu AI': '🟣',
+      'OpenAI': '⚪',
+      'Anthropic': '🟤',
     };
-    return iconMap[provider] || <RobotOutlined />;
+    return iconMap[provider] || '🤖';
+  };
+
+  // 模型卡片动画配置
+  const cardVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: (i: number) => ({ 
+      opacity: 1, 
+      y: 0, 
+      transition: { 
+        duration: 0.4,
+        delay: 0.05 * i
+      }
+    }),
+    hover: { 
+      y: -5,
+      boxShadow: '0 8px 15px rgba(0, 0, 0, 0.1)'
+    },
+    tap: { 
+      y: -2,
+      boxShadow: '0 5px 10px rgba(0, 0, 0, 0.1)'
+    }
   };
 
   return (
-    <div>
-      <Title level={3} style={{ marginBottom: '20px', color: '#333' }}>
-        <ExperimentOutlined style={{ marginRight: '8px', color: '#4facfe' }} />
-        选择参与辩论的AI模型
-      </Title>
-
-      {/* 模型选择区域 */}
-      <div style={{ marginBottom: '24px' }}>
-        <Text strong style={{ fontSize: '16px', marginBottom: '12px', display: 'block' }}>
-          辩论参与者 (至少选择2个)
-        </Text>
-        <Row gutter={[16, 16]}>
-          {models
-            .filter(model => model.enabled)
-            .map(model => (
-              <Col xs={24} sm={12} lg={8} key={model.id}>
-                <Card
-                  size="small"
-                  hoverable={!disabled}
-                  className={selectedModels.includes(model.id) ? 'model-card selected' : 'model-card'}
-                  style={{
-                    border: selectedModels.includes(model.id) 
-                      ? '2px solid #4facfe' 
-                      : '2px solid #e1e5e9',
-                    background: selectedModels.includes(model.id) ? '#f0f9ff' : 'white',
-                    opacity: disabled ? 0.6 : 1,
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                  }}
-                  onClick={() => {
-                    if (!disabled) {
-                      handleModelChange(model.id, !selectedModels.includes(model.id));
-                    }
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <Checkbox
-                      checked={selectedModels.includes(model.id)}
-                      disabled={disabled}
-                      style={{ marginTop: '2px' }}
-                      onChange={(e) => {
-                        if (!disabled) {
-                          handleModelChange(model.id, e.target.checked);
-                        }
-                      }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                        {getProviderIcon(model.provider)}
-                        <Text strong style={{ fontSize: '14px' }}>
-                          {model.name}
-                        </Text>
-                        <Badge 
-                          status="success" 
-                          text="可用" 
-                          style={{ fontSize: '12px' }}
-                        />
-                      </div>
-                      <Text 
-                        type="secondary" 
+    <div className="model-selector-container">
+      <div className="model-grid">
+        {models
+          .filter(model => model.enabled)
+          .map((model, i) => {
+            const isSelected = selectedModels.includes(model.id);
+            
+            return (
+              <motion.div
+                key={model.id}
+                className={`model-card ${isSelected ? 'selected' : ''}`}
+                initial="initial"
+                animate="animate"
+                whileHover={disabled ? {} : "hover"}
+                whileTap={disabled ? {} : "tap"}
+                variants={cardVariants}
+                custom={i}
+                onClick={() => {
+                  if (!disabled) {
+                    handleModelChange(model.id, !isSelected);
+                  }
+                }}
+                style={{
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.7 : 1,
+                }}
+              >
+                <div className="model-header">
+                  <div className="model-name">
+                    {model.name}
+                    {isSelected && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 15 }}
                         style={{ 
-                          fontSize: '12px', 
-                          lineHeight: '1.4',
-                          display: 'block'
+                          display: 'inline-flex', 
+                          marginLeft: '10px', 
+                          color: 'var(--primary-color)'
                         }}
                       >
-                        {model.description}
-                      </Text>
-                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#999' }}>
-                        {model.provider}{model.maxTokens ? ` • ${model.maxTokens} tokens` : ''}
-                      </div>
-                    </div>
+                        <CheckCircleFilled />
+                      </motion.span>
+                    )}
                   </div>
-                </Card>
-              </Col>
-            ))}
-        </Row>
+                  <span className="model-provider">{getProviderIcon(model.provider)} {model.provider}</span>
+                </div>
+                
+                <p className="model-description">
+                  {model.description}
+                </p>
+                
+                <div style={{ marginTop: 'auto' }}>
+                  <Checkbox
+                    checked={isSelected}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      if (!disabled) {
+                        handleModelChange(model.id, e.target.checked);
+                      }
+                    }}
+                    className="model-checkbox"
+                  >
+                    <span style={{ 
+                      fontSize: '0.85rem', 
+                      color: 'var(--text-secondary)' 
+                    }}>
+                      {isSelected ? '已选择' : '选择此模型'}
+                    </span>
+                  </Checkbox>
+                </div>
+              </motion.div>
+            );
+          })}
       </div>
 
       {/* 选择摘要 */}
-      <div style={{ 
-        marginTop: '20px', 
-        padding: '12px', 
-        background: '#f8f9fa', 
-        borderRadius: '8px',
-        border: '1px solid #e1e5e9'
-      }}>
-        <Text style={{ fontSize: '13px', color: '#666' }}>
+      <motion.div 
+        className="selection-summary"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+        style={{ 
+          background: 'var(--bg-secondary)',
+          padding: '15px 20px',
+          borderRadius: '12px',
+          marginTop: '20px',
+          fontSize: '0.9rem',
+          color: 'var(--text-secondary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}
+      >
+        <ExperimentOutlined style={{ fontSize: '1.2rem', color: 'var(--primary-color)' }} />
+        <span>
           <strong>当前配置：</strong>
           {selectedModels.length > 0 ? (
-            `已选择 ${selectedModels.length} 个AI模型参与辩论`
+            `已选择 ${selectedModels.length} 个AI模型参与辩论${selectedModels.length < 2 ? ' (至少需要2个)' : ''}`
           ) : (
             '请选择至少2个AI模型开始辩论'
           )}
-        </Text>
-      </div>
+        </span>
+      </motion.div>
     </div>
   );
 };

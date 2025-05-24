@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Layout, message, Tooltip } from 'antd';
+import { Layout, message } from 'antd';
 import { motion } from 'framer-motion';
 import { 
   RobotOutlined, 
   BulbOutlined, 
   QuestionCircleOutlined, 
-  ApiOutlined
+  ApiOutlined 
 } from '@ant-design/icons';
-
-import ParticleBackground from '../src/components/ParticleBackground';
-import AppHeader from '../src/components/Header';
-import AccessibilityToolbar from '../src/components/AccessibilityToolbar';
 
 import QuestionInput from '../src/components/QuestionInput';
 import ModelSelector from '../src/components/ModelSelector';
@@ -91,65 +87,18 @@ export default function HomePage() {
     progress: 0,
   });
   
-  // 从 localStorage 加载主题
-  useEffect(() => {
-    // 页面加载后检查是否存在保存的主题
-    const savedTheme = typeof window !== 'undefined' 
-      ? localStorage.getItem('debate-theme') 
-      : null;
-    
-    if (savedTheme && ['default', 'theme-amber', 'theme-teal'].includes(savedTheme)) {
-      setCurrentTheme(savedTheme);
-    }
-  }, []);
-  
   // 切换主题
   const toggleTheme = () => {
     const themes = ['default', 'theme-amber', 'theme-teal'];
     const currentIndex = themes.indexOf(currentTheme);
     const nextIndex = (currentIndex + 1) % themes.length;
-    const newTheme = themes[nextIndex];
-    
-    // 保存到 localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('debate-theme', newTheme);
-    }
-    
-    setCurrentTheme(newTheme);
+    setCurrentTheme(themes[nextIndex]);
   };
 
   // 页面加载完成后的动画效果
   useEffect(() => {
-    // 当页面完全加载后再显示动画效果
-    const onLoad = () => {
-      setIsPageLoaded(true);
-    };
-    
-    // 如果页面已经加载完成
-    if (document.readyState === 'complete') {
-      onLoad();
-    } else {
-      window.addEventListener('load', onLoad);
-      return () => window.removeEventListener('load', onLoad);
-    }
+    setIsPageLoaded(true);
   }, []);
-  
-  // 滚动到结果区域
-  const scrollToResults = useCallback(() => {
-    if (debateResult || partialResult) {
-      setTimeout(() => {
-        const resultsElement = document.querySelector('.results-container');
-        if (resultsElement) {
-          resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 500);
-    }
-  }, [debateResult, partialResult]);
-  
-  // 当结果更新时，滚动到结果区域
-  useEffect(() => {
-    scrollToResults();
-  }, [debateResult, partialResult, scrollToResults]);
 
   // 处理问题提交
   const handleQuestionSubmit = async (question: string) => {
@@ -315,190 +264,52 @@ export default function HomePage() {
           animate={{ opacity: isPageLoaded ? 0.8 : 0 }}
           transition={{ duration: 1.5 }}
         >
-          <ParticleBackground 
-            color={
-              currentTheme === 'theme-amber' 
-                ? 'rgba(255, 191, 0, 0.5)' 
-                : currentTheme === 'theme-teal' 
-                  ? 'rgba(0, 150, 136, 0.5)' 
-                  : 'rgba(255, 255, 255, 0.5)'
-            } 
-          />
+          {/* 背景粒子效果将在这里添加 */}
         </motion.div>
-        
-        {/* 辅助功能工具栏 */}
-        <AccessibilityToolbar
-          currentTheme={currentTheme}
-          onThemeChange={(theme) => {
-            setCurrentTheme(theme);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('debate-theme', theme);
-            }
-          }}
-        />
         
         <Layout className="main-content">
           {/* 头部 */}
           <Header className="app-header">
-            <AppHeader 
-              toggleTheme={toggleTheme} 
-              currentTheme={currentTheme}
-              isPageLoaded={isPageLoaded}
-            />
+            <motion.div 
+              className="header-content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
+            >
+              <div className="logo-container">
+                <motion.div 
+                  className="logo-icon"
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={toggleTheme}
+                  style={{ cursor: 'pointer' }}
+                  title="点击切换主题"
+                >
+                  <RobotOutlined />
+                </motion.div>
+                <div>
+                  <motion.h1
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.7 }}
+                  >
+                    多LLM辩论教育平台
+                  </motion.h1>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 0.9 }}
+                  >
+                    <BulbOutlined style={{ marginRight: '10px' }} />
+                    通过AI模型间的辩论与审视，获得更全面、准确的答案
+                  </motion.p>
+                </div>
+              </div>
+            </motion.div>
           </Header>
 
           {/* 主要内容 */}
           <Content className="app-content">
-            {/* 介绍卡片 */}
-            <motion.div 
-              className="intro-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 20 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-              style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: '16px',
-                padding: '20px',
-                marginBottom: '30px',
-                border: '1px solid rgba(255,255,255,0.2)',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-                <motion.div
-                  style={{ 
-                    background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '24px'
-                  }}
-                  animate={{ 
-                    rotate: [0, 10, 0, -10, 0],
-                  }}
-                  transition={{ 
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                >
-                  <BulbOutlined />
-                </motion.div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>
-                  AI辩论如何使用
-                </h2>
-              </div>
-              <p style={{ 
-                color: 'var(--text-secondary)',
-                fontSize: '1rem',
-                lineHeight: '1.6',
-                margin: '0 0 15px 0'
-              }}>
-                通过让多个AI模型针对同一问题展开辩论，从不同视角分析问题，帮助您获得更全面、更深入的见解。
-              </p>
-              
-              <div style={{ 
-                display: 'flex',
-                gap: '15px',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{ 
-                  flex: '1 1 200px',
-                  background: 'rgba(255,255,255,0.5)',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px'
-                }}>
-                  <div style={{ 
-                    background: 'rgba(71, 118, 230, 0.1)',
-                    color: 'var(--primary-color)',
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold'
-                  }}>1</div>
-                  <div>
-                    <strong>提出复杂问题</strong>
-                    <p style={{ 
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                      margin: '5px 0 0 0'
-                    }}>输入您想探讨的问题，比如伦理、科技、教育等话题</p>
-                  </div>
-                </div>
-                
-                <div style={{ 
-                  flex: '1 1 200px',
-                  background: 'rgba(255,255,255,0.5)',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px'
-                }}>
-                  <div style={{ 
-                    background: 'rgba(71, 118, 230, 0.1)',
-                    color: 'var(--primary-color)',
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold'
-                  }}>2</div>
-                  <div>
-                    <strong>选择至少两个AI模型</strong>
-                    <p style={{ 
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                      margin: '5px 0 0 0'
-                    }}>不同AI模型有各自的特点，多样性带来更丰富的观点</p>
-                  </div>
-                </div>
-                
-                <div style={{ 
-                  flex: '1 1 200px',
-                  background: 'rgba(255,255,255,0.5)',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px'
-                }}>
-                  <div style={{ 
-                    background: 'rgba(71, 118, 230, 0.1)',
-                    color: 'var(--primary-color)',
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold'
-                  }}>3</div>
-                  <div>
-                    <strong>获取综合分析</strong>
-                    <p style={{ 
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                      margin: '5px 0 0 0'
-                    }}>系统将自动组织辩论，生成多角度分析和最终总结</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-            
             {/* 问题输入区域 */}
             <motion.div 
               className="question-section"
