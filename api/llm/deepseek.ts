@@ -60,7 +60,7 @@ export class DeepSeekClient extends BaseLLMClient {
       baseURL,
       defaultOptions: {
         temperature: 0.7,
-        maxTokens: 4096,
+        maxTokens: 8192,
         topP: 0.95,
         timeout: 60000,
       },
@@ -70,7 +70,7 @@ export class DeepSeekClient extends BaseLLMClient {
 
     super(fullConfig);
     
-    this.model = (config as DeepSeekConfig)?.model || 'deepseek-chat';
+    this.model = (config as DeepSeekConfig)?.model || process.env.DEEPSEEK_DEFAULT_MODEL || 'deepseek-chat';
     
     // 创建axios实例
     this.client = axios.create({
@@ -105,10 +105,22 @@ export class DeepSeekClient extends BaseLLMClient {
         options 
       });
 
+      // 检查并截断过长的提示词
+      let processedPrompt = prompt;
+      const maxPromptLength = 12000; // 留出一些空间给响应tokens
+      
+      if (prompt.length > maxPromptLength) {
+        processedPrompt = prompt.substring(0, maxPromptLength) + '\n\n[提示词已自动截断以适应模型限制]';
+        this.log('warn', `提示词过长，已截断`, { 
+          originalLength: prompt.length, 
+          truncatedLength: processedPrompt.length 
+        });
+      }
+
       const messages: DeepSeekMessage[] = [
         {
           role: 'user',
-          content: prompt,
+          content: processedPrompt,
         },
       ];
 

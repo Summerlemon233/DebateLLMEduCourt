@@ -113,7 +113,7 @@ export class HunyuanClient extends BaseLLMClient {
     options: any
   ): Promise<HunyuanResponse> {
     const requestBody: HunyuanRequest = {
-      Model: options.model || 'hunyuan-lite',
+      Model: options.model || process.env.HUNYUAN_DEFAULT_MODEL || 'hunyuan-lite',
       Messages: [
         {
           Role: 'system',
@@ -154,11 +154,31 @@ export class HunyuanClient extends BaseLLMClient {
 
     const data = await response.json();
     
-    if (!data.Response || !data.Response.Choices || data.Response.Choices.length === 0) {
+    // 增强响应验证
+    if (!data || !data.Response) {
+      throw new DebateError(
+        'Invalid response structure from Hunyuan API',
+        'INVALID_RESPONSE',
+        { response: data }
+      );
+    }
+
+    if (data.Response.Error) {
+      throw new DebateError(
+        `Hunyuan API Error: ${data.Response.Error.Message}`,
+        'API_ERROR',
+        { 
+          code: data.Response.Error.Code,
+          message: data.Response.Error.Message 
+        }
+      );
+    }
+
+    if (!data.Response.Choices || data.Response.Choices.length === 0) {
       throw new DebateError(
         'No choices returned from Hunyuan API',
         'INVALID_RESPONSE',
-        { response: data }
+        { response: data.Response }
       );
     }
 

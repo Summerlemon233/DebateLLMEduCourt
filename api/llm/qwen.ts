@@ -73,7 +73,7 @@ export class QwenClient extends BaseLLMClient {
 
     super(fullConfig);
     
-    this.model = (config as QwenConfig)?.model || 'qwen-turbo';
+    this.model = (config as QwenConfig)?.model || process.env.QWEN_DEFAULT_MODEL || 'qwen-turbo';
     
     // 创建axios实例
     this.client = axios.create({

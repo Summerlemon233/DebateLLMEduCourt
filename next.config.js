@@ -2,8 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  transpilePackages: ['antd', '@ant-design/icons', 'rc-util', 'rc-pagination', 'rc-picker'],
   experimental: {
-    appDir: false // 使用pages目录结构
+    esmExternals: 'loose',
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,

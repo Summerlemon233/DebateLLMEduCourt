@@ -109,7 +109,7 @@ export class DoubaoClient extends BaseLLMClient {
     config: any
   ): Promise<DoubaoResponse> {
     const requestBody: DoubaoRequest = {
-      model: config.model || 'ep-20241218114516-ftqf5',
+      model: config.model || process.env.DOUBAO_DEFAULT_MODEL || 'ep-20241218114516-ftqf5',
       messages: [
         {
           role: 'system',

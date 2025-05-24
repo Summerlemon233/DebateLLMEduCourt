@@ -109,7 +109,7 @@ export class ChatGLMClient extends BaseLLMClient {
     options: any
   ): Promise<ChatGLMResponse> {
     const requestBody: ChatGLMRequest = {
-      model: options.model || 'glm-4',
+      model: options.model || process.env.CHATGLM_DEFAULT_MODEL || 'glm-4',
       messages: [
         {
           role: 'system',

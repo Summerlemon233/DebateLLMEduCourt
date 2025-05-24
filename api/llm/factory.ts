@@ -4,7 +4,7 @@ import { DeepSeekClient } from './deepseek';
 import { QwenClient } from './qwen';
 import { DoubaoClient } from './doubao';
 import { ChatGLMClient } from './chatglm';
-import { HunyuanClient } from './hunyuan';
+import { HunyuanClient } from './hunyuan_new';
 import { DebateError } from '../utils/error-handler';
 
 export type LLMProvider = 'gemini' | 'deepseek' | 'qwen' | 'doubao' | 'chatglm' | 'hunyuan';
@@ -15,11 +15,7 @@ interface LLMConfig {
   qwen?: string;
   doubao?: string;
   chatglm?: string;
-  hunyuan?: {
-    secretId: string;
-    secretKey: string;
-    region?: string;
-  };
+  hunyuan?: string;
 }
 
 export class LLMFactory {
@@ -60,11 +56,11 @@ export class LLMFactory {
 
       // Hunyuan
       if (this.config.hunyuan) {
-        this.clients.set('hunyuan', new HunyuanClient(
-          this.config.hunyuan.secretId,
-          this.config.hunyuan.secretKey,
-          this.config.hunyuan.region
-        ));
+        this.clients.set('hunyuan', new HunyuanClient({
+          apiKey: this.config.hunyuan,
+          baseURL: process.env.HUNYUAN_BASE_URL || 'https://api.hunyuan.cloud.tencent.com/v1',
+          model: process.env.HUNYUAN_DEFAULT_MODEL || 'hunyuan-turbos-latest'
+        }));
       }
     } catch (error) {
       throw new DebateError(
@@ -154,12 +150,8 @@ export class LLMFactory {
       config.chatglm = process.env.CHATGLM_API_KEY;
     }
 
-    if (process.env.HUNYUAN_SECRET_ID && process.env.HUNYUAN_SECRET_KEY) {
-      config.hunyuan = {
-        secretId: process.env.HUNYUAN_SECRET_ID,
-        secretKey: process.env.HUNYUAN_SECRET_KEY,
-        region: process.env.HUNYUAN_REGION || 'ap-beijing'
-      };
+    if (process.env.HUNYUAN_API_KEY) {
+      config.hunyuan = process.env.HUNYUAN_API_KEY;
     }
 
     return new LLMFactory(config);

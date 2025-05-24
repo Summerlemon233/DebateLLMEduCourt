@@ -1,208 +1,237 @@
-import { BaseLLMClient } from './base';
-import { LLMResponse, ModelConfig } from '../../src/types';
-import { DebateError } from '../utils/error-handler';
-import { retryWithBackoff } from '../utils/retry';
-import crypto from 'crypto';
+import { BaseLLMClient, BaseLLMConfig } from './base';
+import { LLMResponse, LLMCallOptions } from '@/types';
+import { DebateError, ErrorCodes } from '../utils/error-handler';
 
-interface HunyuanMessage {
-  Role: 'system' | 'user' | 'assistant';
-  Content: string;
+interface HunyuanConfig {
+  apiKey: string;
+  baseURL?: string;
+  model?: string;
 }
 
-interface HunyuanRequest {
-  Model: string;
-  Messages: HunyuanMessage[];
-  Temperature?: number;
-  TopP?: number;
-  Stream?: boolean;
+interface OpenAIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
 }
 
-interface HunyuanResponse {
-  Response: {
-    Choices: Array<{
-      Message: {
-        Role: string;
-        Content: string;
-      };
-      FinishReason: string;
-    }>;
-    Usage: {
-      PromptTokens: number;
-      CompletionTokens: number;
-      TotalTokens: number;
-    };
-    RequestId: string;
+interface OpenAIRequest {
+  model: string;
+  messages: OpenAIMessage[];
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  stream?: boolean;
+  stop?: string[];
+  extra_body?: Record<string, any>;
+}
+
+interface OpenAIChoice {
+  index: number;
+  message: {
+    role: string;
+    content: string;
   };
+  finish_reason: string;
+}
+
+interface OpenAIResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: OpenAIChoice[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  note?: string;
 }
 
 export class HunyuanClient extends BaseLLMClient {
-  private secretId: string;
-  private secretKey: string;
-  private region: string;
+  private apiKey: string;
+  private baseURL: string;
+  private model: string;
 
-  constructor(secretId: string, secretKey: string, region: string = 'ap-beijing') {
-    super({
+  constructor(config: HunyuanConfig) {
+    const baseLLMConfig: BaseLLMConfig = {
       modelId: 'hunyuan',
-      modelName: 'Hunyuan',
-      apiKey: secretId, // Store secretId as apiKey for availability check
-      baseURL: 'https://hunyuan.tencentcloudapi.com',
+      modelName: 'Tencent Hunyuan',
+      apiKey: config.apiKey,
+      baseURL: config.baseURL || 'https://api.hunyuan.cloud.tencent.com/v1',
       defaultOptions: {
-        maxTokens: 4096,
         temperature: 0.7,
+        maxTokens: 4096,
       },
       timeout: 30000,
-    });
-    this.secretId = secretId;
-    this.secretKey = secretKey;
-    this.region = region;
-  }
-
-  protected async callAPI(prompt: string, options: any): Promise<string> {
-    try {
-      const response = await retryWithBackoff(
-        async () => this.makeRequest(prompt, options),
-        {
-          maxRetries: 3,
-          baseDelay: 1000,
-          maxDelay: 5000,
-        }
-      );
-
-      return response.Response.Choices[0]?.Message?.Content || '';
-    } catch (error) {
-      console.error('Hunyuan API request failed:', error);
-      throw error;
-    }
-  }
-
-  async generateResponse(prompt: string, options: any = {}): Promise<LLMResponse> {
-    const startTime = Date.now();
-    try {
-      const response = await retryWithBackoff(
-        async () => this.makeRequest(prompt, options),
-        {
-          maxRetries: 3,
-          baseDelay: 1000,
-          maxDelay: 5000,
-        }
-      );
-
-      return {
-        model: this.config.modelName,
-        content: response.Response.Choices[0]?.Message?.Content || '',
-        timestamp: new Date().toISOString(),
-        usage: {
-          promptTokens: response.Response.Usage?.PromptTokens || 0,
-          completionTokens: response.Response.Usage?.CompletionTokens || 0,
-          totalTokens: response.Response.Usage?.TotalTokens || 0
-        },
-        responseTime: Date.now() - startTime
-      };
-    } catch (error) {
-      console.error('Hunyuan API request failed:', error);
-      throw error;
-    }
-  }
-
-  isAvailable(): boolean {
-    return !!(this.secretId && this.secretKey);
-  }
-
-  private async makeRequest(
-    prompt: string,
-    options: any
-  ): Promise<HunyuanResponse> {
-    const requestBody: HunyuanRequest = {
-      Model: options.model || 'hunyuan-lite',
-      Messages: [
-        {
-          Role: 'system',
-          Content: '你是一个专业的辩论助手，请提供有逻辑性和说服力的观点。'
-        },
-        {
-          Role: 'user',
-          Content: prompt
-        }
-      ],
-      Temperature: options.temperature || 0.7,
-      TopP: options.topP || 0.9,
-      Stream: false
     };
 
-    // 腾讯云API需要签名，这里简化处理
-    // 实际项目中需要实现完整的腾讯云API v3签名算法
-    const headers = await this.generateHeaders(requestBody);
+    super(baseLLMConfig);
+    this.apiKey = config.apiKey;
+    this.baseURL = config.baseURL || 'https://api.hunyuan.cloud.tencent.com/v1';
+    this.model = config.model || 'hunyuan-turbos-latest';
+  }
 
-    const response = await fetch(this.config.baseURL, {
+  protected async callAPI(prompt: string, options: LLMCallOptions): Promise<string> {
+    const messages: OpenAIMessage[] = [
+      { role: 'user', content: prompt }
+    ];
+
+    const requestBody: OpenAIRequest = {
+      model: this.model,
+      messages: messages,
+      temperature: options.temperature || 0.7,
+      max_tokens: options.maxTokens || 4096,
+      top_p: options.topP || 1.0,
+      stream: false,
+      extra_body: {
+        enable_enhancement: true
+      }
+    };
+
+    const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorText = await response.text();
       throw new DebateError(
-        `Hunyuan API error: ${response.status}`,
-        'API_ERROR',
+        ErrorCodes.API_RESPONSE_ERROR,
+        `Hunyuan API error: ${response.status} ${response.statusText}`,
         { 
-          response: errorData,
-          url: this.config.baseURL,
-          model: requestBody.Model
+          status: response.status, 
+          statusText: response.statusText,
+          error: errorText,
+          model: this.model 
         }
       );
     }
 
-    const data = await response.json();
+    const data: OpenAIResponse = await response.json();
     
-    if (!data.Response || !data.Response.Choices || data.Response.Choices.length === 0) {
+    if (!data.choices || data.choices.length === 0) {
       throw new DebateError(
-        'No choices returned from Hunyuan API',
-        'INVALID_RESPONSE',
-        { response: data }
+        ErrorCodes.MODEL_RESPONSE_EMPTY,
+        'No response choices returned from Hunyuan API',
+        { data }
       );
     }
 
-    return data;
+    return data.choices[0].message.content;
   }
 
-  private async generateHeaders(requestBody: HunyuanRequest): Promise<Record<string, string>> {
-    // 简化的腾讯云API签名实现
-    // 实际项目中需要完整实现腾讯云API v3签名算法
-    const timestamp = Math.floor(Date.now() / 1000).toString();
+  isAvailable(): boolean {
+    return !!this.apiKey;
+  }
+
+  // 兼容旧接口的方法
+  async generateResponse(prompt: string, systemMessage?: string): Promise<LLMResponse> {
+    let fullPrompt = prompt;
+    if (systemMessage) {
+      fullPrompt = `${systemMessage}\n\n${prompt}`;
+    }
     
-    return {
-      'Content-Type': 'application/json',
-      'X-TC-Action': 'ChatCompletions',
-      'X-TC-Version': '2023-09-01',
-      'X-TC-Region': this.region,
-      'X-TC-Timestamp': timestamp,
-      'Authorization': this.generateAuthorizationHeader(requestBody, timestamp)
+    return this.call(fullPrompt);
+  }
+
+  async generateStreamResponse(
+    prompt: string,
+    systemMessage?: string,
+    onToken?: (token: string) => void
+  ): Promise<string> {
+    const messages: OpenAIMessage[] = [];
+    
+    if (systemMessage) {
+      messages.push({ role: 'system', content: systemMessage });
+    }
+    
+    messages.push({ role: 'user', content: prompt });
+
+    const requestBody: OpenAIRequest = {
+      model: this.model,
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 4096,
+      stream: true,
+      extra_body: {
+        enable_enhancement: true
+      }
     };
-  }
 
-  private generateAuthorizationHeader(requestBody: HunyuanRequest, timestamp: string): string {
-    // 这是一个简化的实现，实际需要完整的腾讯云签名算法
-    // 包括：计算规范请求、创建待签名字符串、计算签名等步骤
-    const payload = JSON.stringify(requestBody);
-    const payloadHash = crypto.createHash('sha256').update(payload).digest('hex');
-    
-    // 简化的签名（实际项目中需要完整实现）
-    const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${payloadHash}`;
-    const signature = crypto.createHmac('sha256', this.secretKey).update(stringToSign).digest('hex');
-    
-    return `TC3-HMAC-SHA256 Credential=${this.secretId}/${timestamp}, SignedHeaders=content-type;host;x-tc-action, Signature=${signature}`;
-  }
+    const response = await fetch(`${this.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
 
-  async healthCheck(): Promise<boolean> {
-    try {
-      const testResponse = await this.generateResponse(
-        '请回答：健康检查测试',
-        { maxTokens: 50 }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new DebateError(
+        ErrorCodes.API_RESPONSE_ERROR,
+        `Hunyuan API error: ${response.status} ${response.statusText}`,
+        { 
+          status: response.status, 
+          statusText: response.statusText,
+          error: errorText,
+          model: this.model 
+        }
       );
-      return testResponse.content.length > 0;
-    } catch (error) {
-      console.error('Hunyuan health check failed:', error);
-      return false;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new DebateError(
+        ErrorCodes.API_RESPONSE_ERROR,
+        'Response body is not readable'
+      );
+    }
+
+    let fullResponse = '';
+    const decoder = new TextDecoder();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            
+            if (data === '[DONE]') {
+              return fullResponse;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                const token = parsed.choices[0].delta.content;
+                fullResponse += token;
+                if (onToken) {
+                  onToken(token);
+                }
+              }
+            } catch (e) {
+              // 忽略解析错误，继续处理下一行
+              continue;
+            }
+          }
+        }
+      }
+
+      return fullResponse;
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -211,7 +240,28 @@ export class HunyuanClient extends BaseLLMClient {
       id: this.config.modelId,
       name: this.config.modelName,
       provider: 'Tencent',
-      available: this.isAvailable()
+      available: this.isAvailable(),
+      baseURL: this.baseURL,
+      model: this.model,
+      supportStream: true,
+      supportSystem: true,
+      maxTokens: 4096,
+      description: 'Tencent Hunyuan large language model using OpenAI-compatible API format'
     };
+  }
+
+  // 静态方法用于从环境变量创建实例
+  static fromEnv(): HunyuanClient | null {
+    const apiKey = process.env.HUNYUAN_API_KEY;
+    
+    if (!apiKey) {
+      return null;
+    }
+
+    return new HunyuanClient({
+      apiKey,
+      baseURL: process.env.HUNYUAN_BASE_URL || 'https://api.hunyuan.cloud.tencent.com/v1',
+      model: process.env.HUNYUAN_DEFAULT_MODEL || 'hunyuan-turbos-latest'
+    });
   }
 }

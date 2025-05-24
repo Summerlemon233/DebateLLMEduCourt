@@ -16,7 +16,7 @@ export class GeminiClient extends BaseLLMClient {
   private modelName: string;
 
   constructor(config?: Partial<GeminiConfig>) {
-    const apiKey = validateApiKey('GOOGLE_GEMINI_API_KEY');
+    const apiKey = validateApiKey('GEMINI_API_KEY');
     
     const fullConfig: BaseLLMConfig = {
       modelId: 'gemini',
@@ -35,7 +35,7 @@ export class GeminiClient extends BaseLLMClient {
     super(fullConfig);
     
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.modelName = (config as GeminiConfig)?.model || 'gemini-1.5-flash';
+    this.modelName = (config as GeminiConfig)?.model || process.env.GEMINI_DEFAULT_MODEL || 'gemini-1.5-flash';
   }
 
   /**
