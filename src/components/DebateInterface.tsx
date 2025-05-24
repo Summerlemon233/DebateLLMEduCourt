@@ -49,7 +49,7 @@ const DebateInterface: React.FC<DebateInterfaceProps> = ({
         <QuestionInput
           onSubmit={onQuestionSubmit}
           isLoading={loadingState.isLoading}
-          placeholder="请输入您想要探讨的问题，例如：人工智能对教育的影响是什么？"
+          placeholder="请输入您想要探讨的问题。"
         />
       </div>
 

@@ -1,5 +1,9 @@
 import React from 'react';
 import { Card, Typography, Timeline, Badge, Empty, Divider, Tag } from 'antd';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { 
   RobotOutlined,
   CheckCircleOutlined,
@@ -8,7 +12,7 @@ import {
   BulbOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
-import type { ResultDisplayProps, DebateStage, LLMResponse } from '@/types';
+import type { ResultDisplayProps, DebateStage, LLMResponse, RealtimeDebateResult, DebateResult } from '@/types';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -27,6 +31,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
       </div>
     );
   }
+
+  // 判断是否为实时辩论结果
+  const isRealtimeResult = 'isComplete' in result;
+  const realtimeResult = result as RealtimeDebateResult;
+  const staticResult = result as DebateResult;
 
   // 获取模型显示名称
   const getModelName = (modelId: string) => {
@@ -91,18 +100,59 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         </div>
 
         {hasContent ? (
-          <Paragraph
+          <div
             style={{
               background: '#f8f9fa',
               padding: '16px',
               borderRadius: '8px',
               marginBottom: 0,
-              whiteSpace: 'pre-wrap',
-              lineHeight: '1.7',
             }}
           >
-            {response.content}
-          </Paragraph>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({node, inline, className, children, ...props}: any) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  return !inline && match ? (
+                    <SyntaxHighlighter
+                      style={tomorrow as any}
+                      language={match[1]}
+                      PreTag="div"
+                      {...props}
+                    >
+                      {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                p: ({children}) => <div style={{ marginBottom: '12px', lineHeight: '1.7' }}>{children}</div>,
+                h1: ({children}) => <h3 style={{ color: '#1890ff', marginTop: '16px', marginBottom: '8px' }}>{children}</h3>,
+                h2: ({children}) => <h4 style={{ color: '#1890ff', marginTop: '12px', marginBottom: '6px' }}>{children}</h4>,
+                h3: ({children}) => <h5 style={{ color: '#1890ff', marginTop: '8px', marginBottom: '4px' }}>{children}</h5>,
+                ul: ({children}) => <ul style={{ paddingLeft: '20px', marginBottom: '12px' }}>{children}</ul>,
+                ol: ({children}) => <ol style={{ paddingLeft: '20px', marginBottom: '12px' }}>{children}</ol>,
+                li: ({children}) => <li style={{ marginBottom: '4px' }}>{children}</li>,
+                blockquote: ({children}) => (
+                  <blockquote style={{
+                    borderLeft: '4px solid #1890ff',
+                    paddingLeft: '16px',
+                    margin: '16px 0',
+                    fontStyle: 'italic',
+                    background: '#f0f9ff',
+                    padding: '12px 16px',
+                    borderRadius: '4px'
+                  }}>
+                    {children}
+                  </blockquote>
+                ),
+              }}
+            >
+              {response.content}
+            </ReactMarkdown>
+          </div>
         ) : (
           <div style={{
             background: '#fff2f0',
@@ -208,6 +258,17 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
             </Title>
             <Text type="secondary">辩论阶段</Text>
           </div>
+          {isRealtimeResult && (
+            <>
+              <Divider type="vertical" style={{ height: '40px' }} />
+              <div>
+                <Title level={4} style={{ margin: 0, color: realtimeResult.isComplete ? '#52c41a' : '#faad14' }}>
+                  {realtimeResult.isComplete ? '已完成' : '进行中'}
+                </Title>
+                <Text type="secondary">状态</Text>
+              </div>
+            </>
+          )}
         </div>
       </Card>
 
@@ -229,7 +290,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
               </div>
             ),
           },
-          {
+          ...(isRealtimeResult && realtimeResult.isComplete || !isRealtimeResult ? [{
             color: '#52c41a',
             dot: <CheckCircleOutlined style={{ fontSize: '16px' }} />,
             children: (
@@ -241,7 +302,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
                 </Text>
               </div>
             ),
-          },
+          }] : []),
         ]}
       />
 
@@ -280,24 +341,82 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         );
       })}
 
-      {/* 底部总结 */}
-      <Card 
-        style={{ 
-          background: 'linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%)',
-          border: '1px solid #b3d9ff',
-          textAlign: 'center'
-        }}
-      >
-        <Title level={4} style={{ color: '#1890ff', marginBottom: '8px' }}>
-          🎉 辩论总结
-        </Title>
-        <Text>
-          本次辩论共有 <Text strong>{result.stages.length > 0 ? result.stages[0].responses.length : 0} 个AI模型</Text> 参与，
-          历时 <Text strong>{Math.round(result.duration / 1000)} 秒</Text>，
-          通过 <Text strong>{result.stages.length}个阶段</Text> 的深度讨论和验证，
-          为您提供了经过充分思辨的答案。
-        </Text>
-      </Card>
+      {/* 底部总结 - 只在辩论完成时显示 */}
+      {(isRealtimeResult ? realtimeResult.isComplete : true) && (
+        <>
+          {/* 显示总结内容 */}
+          {(isRealtimeResult ? realtimeResult.summary : staticResult.summary) && (
+            <Card 
+              style={{ 
+                background: 'linear-gradient(135deg, #fff2e6 0%, #fef7e6 100%)',
+                border: '1px solid #ffcb8a',
+                marginBottom: '24px'
+              }}
+            >
+              <Title level={4} style={{ color: '#fa8c16', marginBottom: '16px' }}>
+                📝 辩论总结
+              </Title>
+              <div style={{
+                background: '#fff',
+                padding: '16px',
+                borderRadius: '8px',
+                border: '1px solid #f0f0f0'
+              }}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({node, inline, className, children, ...props}: any) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={tomorrow as any}
+                          language={match[1]}
+                          PreTag="div"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    p: ({children}) => <div style={{ marginBottom: '12px', lineHeight: '1.7' }}>{children}</div>,
+                    h1: ({children}) => <h3 style={{ color: '#1890ff', marginTop: '16px', marginBottom: '8px' }}>{children}</h3>,
+                    h2: ({children}) => <h4 style={{ color: '#1890ff', marginTop: '12px', marginBottom: '6px' }}>{children}</h4>,
+                    h3: ({children}) => <h5 style={{ color: '#1890ff', marginTop: '8px', marginBottom: '4px' }}>{children}</h5>,
+                    ul: ({children}) => <ul style={{ paddingLeft: '20px', marginBottom: '12px' }}>{children}</ul>,
+                    ol: ({children}) => <ol style={{ paddingLeft: '20px', marginBottom: '12px' }}>{children}</ol>,
+                    li: ({children}) => <li style={{ marginBottom: '4px' }}>{children}</li>,
+                  }}
+                >
+                  {isRealtimeResult ? realtimeResult.summary! : staticResult.summary}
+                </ReactMarkdown>
+              </div>
+            </Card>
+          )}
+          
+          {/* 辩论统计总结 */}
+          <Card 
+            style={{ 
+              background: 'linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%)',
+              border: '1px solid #b3d9ff',
+              textAlign: 'center'
+            }}
+          >
+            <Title level={4} style={{ color: '#1890ff', marginBottom: '8px' }}>
+              🎉 辩论总结
+            </Title>
+            <Text>
+              本次辩论共有 <Text strong>{result.stages.length > 0 ? result.stages[0].responses.length : 0} 个AI模型</Text> 参与，
+              历时 <Text strong>{Math.round(result.duration / 1000)} 秒</Text>，
+              通过 <Text strong>{result.stages.length}个阶段</Text> 的深度讨论和验证，
+              为您提供了经过充分思辨的答案。
+            </Text>
+          </Card>
+        </>
+      )}
     </div>
   );
 };

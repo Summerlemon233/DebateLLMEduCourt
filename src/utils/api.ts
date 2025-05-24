@@ -156,4 +156,67 @@ export const delay = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+/**
+ * 启动流式辩论
+ * @param request 辩论请求参数
+ * @param onUpdate 实时更新回调函数
+ * @returns Promise<void>
+ */
+export const startStreamingDebate = async (
+  request: DebateRequest,
+  onUpdate: (event: any) => void
+): Promise<void> => {
+  try {
+    const response = await fetch('/api/debate-stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('无法获取响应流');
+    }
+
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        break;
+      }
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const eventData = JSON.parse(line.slice(6));
+            if (eventData.type === 'complete') {
+              return;
+            }
+            if (eventData.type === 'error') {
+              throw new Error(eventData.error);
+            }
+            onUpdate(eventData);
+          } catch (parseError) {
+            console.warn('Failed to parse SSE data:', parseError);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Streaming debate error:', error);
+    throw error;
+  }
+};
+
 export default api;

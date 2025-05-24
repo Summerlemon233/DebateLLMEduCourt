@@ -44,6 +44,29 @@ export interface DebateResult {
   duration: number;
 }
 
+// 新增：实时辩论结果类型
+export interface RealtimeDebateResult {
+  question: string;
+  models: string[];
+  stages: DebateStage[];
+  currentStage?: number;
+  isComplete: boolean;
+  summary?: string;
+  timestamp: string;
+  duration: number;
+}
+
+// 新增：实时更新事件类型
+export interface DebateUpdateEvent {
+  type: 'stage_start' | 'model_response' | 'stage_complete' | 'debate_complete';
+  stageNumber: number;
+  model?: string;
+  response?: LLMResponse;
+  stage?: DebateStage;
+  isComplete?: boolean;
+  summary?: string;
+}
+
 export interface LoadingState {
   isLoading: boolean;
   currentStage: 'initial' | 'refined' | 'final' | null;
@@ -102,7 +125,7 @@ export interface LoadingIndicatorProps {
 }
 
 export interface ResultDisplayProps {
-  result: DebateResult | null;
+  result: DebateResult | RealtimeDebateResult | null;
   isLoading: boolean;
 }
 

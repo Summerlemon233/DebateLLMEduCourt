@@ -12,7 +12,20 @@ import type { LoadingIndicatorProps } from '@/types';
 const { Title, Text } = Typography;
 
 const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ loadingState }) => {
-  const { currentStage, progress } = loadingState;
+  const { currentStage, progress, currentModel } = loadingState;
+
+  // 获取模型显示名称
+  const getModelName = (modelId: string | null) => {
+    if (!modelId) return null;
+    const modelNames: { [key: string]: string } = {
+      'deepseek': 'DeepSeek',
+      'qwen': 'Qwen (通义千问)',
+      'doubao': 'Doubao (豆包)',
+      'chatglm': 'ChatGLM',
+      'hunyuan': 'Tencent Hunyuan'
+    };
+    return modelNames[modelId] || modelId;
+  };
 
   // 阶段信息配置
   const stageInfo = {
@@ -96,6 +109,14 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ loadingState }) => 
               <Text style={{ display: 'block', color: '#666', fontSize: '14px' }}>
                 {currentStageInfo.description}
               </Text>
+              {/* 显示当前处理的模型 */}
+              {currentModel && (
+                <div style={{ marginTop: '8px' }}>
+                  <Text style={{ fontSize: '13px', color: '#4facfe' }}>
+                    🤖 当前处理：<Text strong>{getModelName(currentModel)}</Text>
+                  </Text>
+                </div>
+              )}
             </div>
           )}
 
