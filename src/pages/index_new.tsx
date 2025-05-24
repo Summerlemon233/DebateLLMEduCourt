@@ -177,7 +177,7 @@ export default function HomePage() {
                 <h1>多LLM辩论教育平台</h1>
                 <p>
                   <BulbOutlined style={{ marginRight: '8px' }} />
-                  通过AI模型间的辩论与审视，获得更全面、准确的答案
+                  通过AI模型间的辣论与审视，获得更全面、准确的答案
                 </p>
               </div>
             </div>

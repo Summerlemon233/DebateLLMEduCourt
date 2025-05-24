@@ -1,37 +1,39 @@
 import React from 'react';
-import { Card, Checkbox, Select, Row, Col, Typography, Badge, Tooltip } from 'antd';
+import { Card, Checkbox, Row, Col, Typography, Badge } from 'antd';
 import { 
   RobotOutlined, 
-  CheckCircleOutlined, 
-  ExperimentOutlined,
-  SafetyOutlined
+  ExperimentOutlined
 } from '@ant-design/icons';
-import type { ModelSelectorProps } from '@/types';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
+
+interface ModelSelectorProps {
+  models: Array<{
+    id: string;
+    name: string;
+    provider: string;
+    description: string;
+    enabled: boolean;
+    maxTokens?: number;
+  }>;
+  selectedModels: string[];
+  onModelChange: (selectedModels: string[]) => void;
+  disabled: boolean;
+}
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({
   models,
   selectedModels,
-  verifierModel,
   onModelChange,
-  onVerifierChange,
   disabled
 }) => {
-  // 处理辩论模型选择
-  const handleDebaterChange = (checkedModels: string[]) => {
-    onModelChange(checkedModels);
-  };
-
-  // 获取可用的验证者模型
-  const getVerifierOptions = () => {
-    return models
-      .filter(model => model.isVerifier && selectedModels.includes(model.id))
-      .map(model => ({
-        value: model.id,
-        label: model.name,
-      }));
+  // 处理模型选择
+  const handleModelChange = (modelId: string, checked: boolean) => {
+    if (checked) {
+      onModelChange([...selectedModels, modelId]);
+    } else {
+      onModelChange(selectedModels.filter(id => id !== modelId));
+    }
   };
 
   // 模型提供商图标映射
@@ -42,7 +44,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       'Alibaba': '🟠',
       'ByteDance': '🔴',
       'Tencent': '🟡',
-      'Zhipu': '🟣',
+      'Zhipu AI': '🟣',
     };
     return iconMap[provider] || <RobotOutlined />;
   };
@@ -54,14 +56,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         选择参与辩论的AI模型
       </Title>
 
-      {/* 辩论模型选择 */}
+      {/* 模型选择区域 */}
       <div style={{ marginBottom: '24px' }}>
         <Text strong style={{ fontSize: '16px', marginBottom: '12px', display: 'block' }}>
           辩论参与者 (至少选择2个)
         </Text>
         <Row gutter={[16, 16]}>
           {models
-            .filter(model => model.isDebater)
+            .filter(model => model.enabled)
             .map(model => (
               <Col xs={24} sm={12} lg={8} key={model.id}>
                 <Card
@@ -78,10 +80,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                   }}
                   onClick={() => {
                     if (!disabled) {
-                      const newSelected = selectedModels.includes(model.id)
-                        ? selectedModels.filter(id => id !== model.id)
-                        : [...selectedModels, model.id];
-                      handleDebaterChange(newSelected);
+                      handleModelChange(model.id, !selectedModels.includes(model.id));
                     }
                   }}
                 >
@@ -90,6 +89,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                       checked={selectedModels.includes(model.id)}
                       disabled={disabled}
                       style={{ marginTop: '2px' }}
+                      onChange={(e) => {
+                        if (!disabled) {
+                          handleModelChange(model.id, e.target.checked);
+                        }
+                      }}
                     />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -97,13 +101,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                         <Text strong style={{ fontSize: '14px' }}>
                           {model.name}
                         </Text>
-                        {model.enabled && (
-                          <Badge 
-                            status="success" 
-                            text="可用" 
-                            style={{ fontSize: '12px' }}
-                          />
-                        )}
+                        <Badge 
+                          status="success" 
+                          text="可用" 
+                          style={{ fontSize: '12px' }}
+                        />
                       </div>
                       <Text 
                         type="secondary" 
@@ -116,7 +118,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                         {model.description}
                       </Text>
                       <div style={{ marginTop: '6px', fontSize: '11px', color: '#999' }}>
-                        {model.provider} • {model.maxTokens} tokens
+                        {model.provider}{model.maxTokens ? ` • ${model.maxTokens} tokens` : ''}
                       </div>
                     </div>
                   </div>
@@ -124,50 +126,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
               </Col>
             ))}
         </Row>
-      </div>
-
-      {/* 验证者模型选择 */}
-      <div>
-        <Text strong style={{ fontSize: '16px', marginBottom: '12px', display: 'block' }}>
-          <SafetyOutlined style={{ marginRight: '6px', color: '#52c41a' }} />
-          最终验证者
-        </Text>
-        <Text 
-          type="secondary" 
-          style={{ fontSize: '13px', marginBottom: '8px', display: 'block' }}
-        >
-          选择一个模型来综合所有辩论结果并提供最终答案
-        </Text>
-        
-        <Select
-          value={verifierModel}
-          onChange={onVerifierChange}
-          disabled={disabled || getVerifierOptions().length === 0}
-          style={{ width: '100%', maxWidth: '400px' }}
-          size="large"
-          placeholder="选择验证者模型"
-        >
-          {getVerifierOptions().map(option => {
-            const model = models.find(m => m.id === option.value);
-            return (
-              <Option key={option.value} value={option.value}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {model && getProviderIcon(model.provider)}
-                  <span>{option.label}</span>
-                  <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 'auto' }} />
-                </div>
-              </Option>
-            );
-          })}
-        </Select>
-
-        {getVerifierOptions().length === 0 && (
-          <div style={{ marginTop: '8px' }}>
-            <Text type="warning" style={{ fontSize: '12px' }}>
-              ⚠️ 请先选择至少一个支持验证功能的辩论模型
-            </Text>
-          </div>
-        )}
       </div>
 
       {/* 选择摘要 */}
@@ -181,12 +139,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         <Text style={{ fontSize: '13px', color: '#666' }}>
           <strong>当前配置：</strong>
           {selectedModels.length > 0 ? (
-            <>
-              {selectedModels.length} 个辩论者参与讨论，
-              由 {models.find(m => m.id === verifierModel)?.name || '未选择'} 作为最终验证者
-            </>
+            `已选择 ${selectedModels.length} 个AI模型参与辩论`
           ) : (
-            '请选择辩论参与者'
+            '请选择至少2个AI模型开始辩论'
           )}
         </Text>
       </div>

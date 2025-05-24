@@ -23,9 +23,7 @@ interface DebateInterfaceProps {
   // 模型选择相关
   models: ModelConfig[];
   selectedModels: string[];
-  verifierModel: string;
   onModelChange: ModelSelectorProps['onModelChange'];
-  onVerifierChange: ModelSelectorProps['onVerifierChange'];
   
   // 状态相关
   loadingState: LoadingState;
@@ -40,9 +38,7 @@ const DebateInterface: React.FC<DebateInterfaceProps> = ({
   onQuestionSubmit,
   models,
   selectedModels,
-  verifierModel,
   onModelChange,
-  onVerifierChange,
   loadingState,
   debateResult,
 }) => {
@@ -62,9 +58,7 @@ const DebateInterface: React.FC<DebateInterfaceProps> = ({
         <ModelSelector
           models={models}
           selectedModels={selectedModels}
-          verifierModel={verifierModel}
           onModelChange={onModelChange}
-          onVerifierChange={onVerifierChange}
           disabled={loadingState.isLoading}
         />
       </div>

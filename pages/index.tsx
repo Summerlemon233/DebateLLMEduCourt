@@ -3,18 +3,18 @@ import Head from 'next/head';
 import { Layout, message } from 'antd';
 import { RobotOutlined, BulbOutlined } from '@ant-design/icons';
 
-import QuestionInput from '@/components/QuestionInput';
-import ModelSelector from '@/components/ModelSelector';
-import LoadingIndicator from '@/components/LoadingIndicator';
-import ResultDisplay from '@/components/ResultDisplay';
+import QuestionInput from '../src/components/QuestionInput';
+import ModelSelector from '../src/components/ModelSelector';
+import LoadingIndicator from '../src/components/LoadingIndicator';
+import ResultDisplay from '../src/components/ResultDisplay';
 
-import { startDebate } from '@/utils/api';
+import { startDebate } from '../src/utils/api';
 import type { 
   DebateResult, 
   LoadingState, 
   ModelConfig,
   DebateRequest 
-} from '@/types';
+} from '../src/types';
 
 const { Header, Content } = Layout;
 

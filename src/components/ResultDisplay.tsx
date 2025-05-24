@@ -28,8 +28,21 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     );
   }
 
-  // 格式化时间戳
-  const formatTimestamp = (timestamp: number) => {
+  // 获取模型显示名称
+  const getModelName = (modelId: string) => {
+    const modelNames: { [key: string]: string } = {
+      'gemini-pro': 'Google Gemini Pro',
+      'deepseek-chat': 'DeepSeek Chat',
+      'qwen-max': 'Qwen Max',
+      'doubao-pro': 'Doubao Pro',
+      'chatglm-4': 'ChatGLM-4',
+      'hunyuan-pro': 'Tencent Hunyuan Pro'
+    };
+    return modelNames[modelId] || modelId;
+  };
+
+  // 格式化时间戳 - 现在是字符串格式
+  const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('zh-CN', {
       hour12: false,
       hour: '2-digit',
@@ -38,9 +51,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     });
   };
 
-  // 获取模型响应的状态标签
+  // 获取模型响应的状态标签 - 基于内容判断成功/失败
   const getResponseStatusBadge = (response: LLMResponse) => {
-    if (response.success) {
+    const hasContent = response.content && response.content.trim().length > 0;
+    if (hasContent) {
       return <Badge status="success" text="成功" />;
     } else {
       return <Badge status="error" text="失败" />;
@@ -49,14 +63,16 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
 
   // 渲染单个模型响应
   const renderModelResponse = (response: LLMResponse, index: number) => {
+    const hasContent = response.content && response.content.trim().length > 0;
+    
     return (
       <Card
-        key={`${response.modelId}-${index}`}
+        key={`${response.model}-${index}`}
         size="small"
         style={{
           marginBottom: '16px',
-          border: response.success ? '1px solid #e1e5e9' : '1px solid #ffccc7',
-          background: response.success ? 'white' : '#fff2f0',
+          border: hasContent ? '1px solid #e1e5e9' : '1px solid #ffccc7',
+          background: hasContent ? 'white' : '#fff2f0',
         }}
       >
         <div style={{ marginBottom: '12px' }}>
@@ -64,7 +80,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <RobotOutlined style={{ color: '#4facfe' }} />
               <Text strong style={{ fontSize: '16px' }}>
-                {response.modelName}
+                {getModelName(response.model)}
               </Text>
               {getResponseStatusBadge(response)}
             </div>
@@ -75,7 +91,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           </div>
         </div>
 
-        {response.success ? (
+        {hasContent ? (
           <Paragraph
             style={{
               background: '#f8f9fa',
@@ -97,7 +113,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           }}>
             <Text type="danger">
               <ExclamationCircleOutlined style={{ marginRight: '8px' }} />
-              错误: {response.error || '模型响应失败'}
+              错误: 模型响应失败或内容为空
             </Text>
           </div>
         )}
@@ -131,7 +147,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
             {title}
           </Title>
           <Tag color={color} style={{ marginLeft: 'auto' }}>
-            {formatTimestamp(stage.timestamp)}
+            {formatTimestamp(stage.startTime)}
           </Tag>
         </div>
         
@@ -175,7 +191,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
           <div>
             <Title level={4} style={{ margin: 0, color: '#4facfe' }}>
-              {result.stages.initial.responses.length}
+              {result.stages.length > 0 ? result.stages[0].responses.length : 0}
             </Title>
             <Text type="secondary">参与模型</Text>
           </div>
@@ -189,7 +205,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           <Divider type="vertical" style={{ height: '40px' }} />
           <div>
             <Title level={4} style={{ margin: 0, color: '#faad14' }}>
-              3
+              {result.stages.length}
             </Title>
             <Text type="secondary">辩论阶段</Text>
           </div>
@@ -209,7 +225,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
                 <Text strong>开始辩论</Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  {formatTimestamp(result.stages.initial.timestamp)}
+                  {result.stages.length > 0 ? formatTimestamp(result.stages[0].startTime) : ''}
                 </Text>
               </div>
             ),
@@ -222,7 +238,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
                 <Text strong>辩论完成</Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  {formatTimestamp(result.stages.final.timestamp)}
+                  {result.stages.length > 0 ? formatTimestamp(result.stages[result.stages.length - 1].endTime) : ''}
                 </Text>
               </div>
             ),
@@ -230,35 +246,40 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         ]}
       />
 
-      {/* 阶段一：初始提案 */}
-      {renderDebateStage(
-        result.stages.initial,
-        1,
-        '🎯 阶段一：初始提案',
-        '各个AI模型基于问题独立提供初始回答',
-        <RobotOutlined style={{ fontSize: '20px', color: '#4facfe' }} />,
-        '#4facfe'
-      )}
+      {/* 渲染所有辩论阶段 */}
+      {result.stages.map((stage, index) => {
+        const stageConfigs = [
+          {
+            title: '🎯 阶段一：初始提案',
+            description: '各个AI模型基于问题独立提供初始回答',
+            icon: <RobotOutlined style={{ fontSize: '20px', color: '#4facfe' }} />,
+            color: '#4facfe'
+          },
+          {
+            title: '🔄 阶段二：交叉审视与修正',
+            description: '模型们互相审视其他模型的回答，并对自己的答案进行修正和优化',
+            icon: <RobotOutlined style={{ fontSize: '20px', color: '#faad14' }} />,
+            color: '#faad14'
+          },
+          {
+            title: '✅ 阶段三：最终验证与综合',
+            description: '综合所有观点，提供最终的准确答案',
+            icon: <SafetyOutlined style={{ fontSize: '20px', color: '#52c41a' }} />,
+            color: '#52c41a'
+          }
+        ];
 
-      {/* 阶段二：交叉审视 */}
-      {renderDebateStage(
-        result.stages.refined,
-        2,
-        '🔄 阶段二：交叉审视与修正',
-        '模型们互相审视其他模型的回答，并对自己的答案进行修正和优化',
-        <RobotOutlined style={{ fontSize: '20px', color: '#faad14' }} />,
-        '#faad14'
-      )}
-
-      {/* 阶段三：最终验证 */}
-      {renderDebateStage(
-        result.stages.final,
-        3,
-        '✅ 阶段三：最终验证与综合',
-        '验证者模型综合所有观点，提供最终的准确答案',
-        <SafetyOutlined style={{ fontSize: '20px', color: '#52c41a' }} />,
-        '#52c41a'
-      )}
+        const config = stageConfigs[index] || stageConfigs[stageConfigs.length - 1];
+        
+        return renderDebateStage(
+          stage,
+          index + 1,
+          config.title,
+          config.description,
+          config.icon,
+          config.color
+        );
+      })}
 
       {/* 底部总结 */}
       <Card 
@@ -272,9 +293,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           🎉 辩论总结
         </Title>
         <Text>
-          本次辩论共有 <Text strong>{result.stages.initial.responses.length} 个AI模型</Text> 参与，
+          本次辩论共有 <Text strong>{result.stages.length > 0 ? result.stages[0].responses.length : 0} 个AI模型</Text> 参与，
           历时 <Text strong>{Math.round(result.duration / 1000)} 秒</Text>，
-          通过 <Text strong>3个阶段</Text> 的深度讨论和验证，
+          通过 <Text strong>{result.stages.length}个阶段</Text> 的深度讨论和验证，
           为您提供了经过充分思辨的答案。
         </Text>
       </Card>

@@ -59,14 +59,14 @@ export const startDebate = async (request: DebateRequest): Promise<DebateResult>
     if (response.data.success && response.data.data) {
       return response.data.data;
     } else {
-      throw new Error(response.data.error?.message || '辩论请求失败');
+      throw new Error(response.data.error || '辩论请求失败');
     }
   } catch (error) {
     console.error('Start debate error:', error);
     
     if (axios.isAxiosError(error)) {
-      if (error.response?.data?.error?.message) {
-        throw new Error(error.response.data.error.message);
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
       }
     }
     
@@ -76,15 +76,31 @@ export const startDebate = async (request: DebateRequest): Promise<DebateResult>
 };
 
 /**
- * 获取可用的LLM模型列表
- * @returns Promise<ModelConfig[]>
+ * 获取模型健康状态
+ * @returns Promise<any>
  */
-export const getAvailableModels = async () => {
+export const getModelsHealth = async () => {
   try {
-    const response = await api.get('/models');
+    const response = await api.get('/health');
     return response.data;
   } catch (error) {
-    console.error('Get models error:', error);
+    console.error('Get models health error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 测试单个模型
+ * @param model 模型名称
+ * @param prompt 测试提示词
+ * @returns Promise<any>
+ */
+export const testModel = async (model: string, prompt: string) => {
+  try {
+    const response = await api.post('/test', { model, prompt });
+    return response.data;
+  } catch (error) {
+    console.error('Test model error:', error);
     throw error;
   }
 };

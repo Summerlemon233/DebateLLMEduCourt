@@ -9,35 +9,39 @@ export interface LLMProvider {
 
 export interface DebateRequest {
   question: string;
-  selectedModels: string[];
-  verifierModel: string;
+  models: string[]; // 修改为与后端匹配
+  config?: ModelConfig;
 }
 
 export interface LLMResponse {
-  modelId: string;
-  modelName: string;
+  model: string; // 修改为与后端匹配
   content: string;
-  timestamp: number;
-  success: boolean;
-  error?: string;
+  timestamp: string; // 修改为字符串类型
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  responseTime: number;
 }
 
 export interface DebateStage {
-  stage: 'initial' | 'refined' | 'final';
+  stage: number; // 修改为数字
+  title: string;
+  description: string;
   responses: LLMResponse[];
-  timestamp: number;
+  startTime: string;
+  endTime: string;
+  duration: number;
 }
 
 export interface DebateResult {
   question: string;
-  stages: {
-    initial: DebateStage;
-    refined: DebateStage;
-    final: DebateStage;
-  };
+  models: string[];
+  stages: DebateStage[];
+  summary: string;
+  timestamp: string;
   duration: number;
-  success: boolean;
-  error?: string;
 }
 
 export interface LoadingState {
@@ -54,8 +58,6 @@ export interface ModelConfig {
   description: string;
   maxTokens: number;
   temperature: number;
-  isVerifier: boolean;
-  isDebater: boolean;
   apiEndpoint?: string;
   enabled: boolean;
 }
@@ -91,9 +93,7 @@ export interface QuestionInputProps {
 export interface ModelSelectorProps {
   models: ModelConfig[];
   selectedModels: string[];
-  verifierModel: string;
   onModelChange: (selectedModels: string[]) => void;
-  onVerifierChange: (verifierModel: string) => void;
   disabled: boolean;
 }
 
@@ -110,5 +110,6 @@ export interface ResultDisplayProps {
 export interface DebateApiResponse {
   success: boolean;
   data?: DebateResult;
-  error?: ApiError;
+  error?: string;
+  timestamp: string;
 }
