@@ -3,12 +3,12 @@ import Head from 'next/head';
 import { Layout, message, Switch, Tooltip } from 'antd';
 import { RobotOutlined, BulbOutlined, ThunderboltOutlined } from '@ant-design/icons';
 
-import QuestionInput from '../src/components/QuestionInput';
-import ModelSelector from '../src/components/ModelSelector';
-import LoadingIndicator from '../src/components/LoadingIndicator';
-import ResultDisplay from '../src/components/ResultDisplay';
+import QuestionInput from '@/components/QuestionInput';
+import ModelSelector from '@/components/ModelSelector';
+import LoadingIndicator from '@/components/LoadingIndicator';
+import ResultDisplay from '@/components/ResultDisplay';
 
-import { startDebate, startStreamingDebate } from '../src/utils/api';
+import { startDebate, startStreamingDebate } from '@/utils/api';
 import type { 
   DebateResult, 
   LoadingState, 
@@ -16,7 +16,7 @@ import type {
   DebateRequest,
   RealtimeDebateResult,
   DebateUpdateEvent
-} from '../src/types';
+} from '@/types';
 
 const { Header, Content } = Layout;
 
@@ -121,41 +121,29 @@ export default function HomePage() {
       };
 
       if (useStreamingMode) {
-        console.log('🚀 启动流式辩论模式');
         // 启动流式辩论
         await startStreamingDebate(request, (event: DebateUpdateEvent) => {
-          console.log('📡 收到流式事件:', event.type, event);
+          console.log('Debate update:', event);
           
-          // 分别处理状态更新，避免竞态条件
-          switch (event.type) {
-            case 'stage_start':
-              console.log(`🎬 开始阶段 ${event.stageNumber}`);
-              setLoadingState(prevLoading => ({
-                ...prevLoading,
-                currentStage: event.stageNumber === 1 ? 'initial' : 
-                             event.stageNumber === 2 ? 'refined' : 'final',
-                progress: (event.stageNumber - 1) * 30,
-              }));
-              
-              setDebateResult(prev => {
-                if (!prev) return prev;
-                const updated = { ...prev };
-                updated.currentStage = event.stageNumber;
-                updated.duration = Date.now() - startTime;
-                return updated;
-              });
-              break;
+          setDebateResult(prev => {
+            if (!prev) return prev;
+            
+            const updated = { ...prev };
+            updated.duration = Date.now() - startTime;
 
-            case 'model_response':
-              if (event.response && event.model) {
-                console.log(`🤖 模型 ${event.model} 在阶段 ${event.stageNumber} 的响应:`, event.response.content.substring(0, 100) + '...');
-                
-                setDebateResult(prev => {
-                  if (!prev) return prev;
-                  
-                  const updated = { ...prev };
-                  updated.duration = Date.now() - startTime;
-                  
+            switch (event.type) {
+              case 'stage_start':
+                updated.currentStage = event.stageNumber;
+                setLoadingState(prevLoading => ({
+                  ...prevLoading,
+                  currentStage: event.stageNumber === 1 ? 'initial' : 
+                               event.stageNumber === 2 ? 'refined' : 'final',
+                  progress: (event.stageNumber - 1) * 30,
+                }));
+                break;
+
+              case 'model_response':
+                if (event.response && event.model) {
                   // 确保阶段存在
                   while (updated.stages.length < event.stageNumber) {
                     updated.stages.push({
@@ -174,68 +162,50 @@ export default function HomePage() {
                   
                   // 检查是否已经有这个模型的响应
                   const existingIndex = stage.responses.findIndex(r => r.model === event.model);
-                  if (existingIndex >= 0 && event.response) {
+                  if (existingIndex >= 0) {
                     stage.responses[existingIndex] = event.response;
-                  } else if (event.response) {
+                  } else {
                     stage.responses.push(event.response);
                   }
-                  
-                  console.log(`✅ 更新后阶段 ${event.stageNumber} 有 ${stage.responses.length} 个响应`);
-                  return updated;
-                });
 
-                setLoadingState(prevLoading => ({
-                  ...prevLoading,
-                  currentModel: event.model || null,
-                  progress: Math.min(
-                    (event.stageNumber - 1) * 30 + 20,
-                    90
-                  ),
-                }));
-              }
-              break;
+                  setLoadingState(prevLoading => ({
+                    ...prevLoading,
+                    currentModel: event.model || null,
+                    progress: Math.min(
+                      (event.stageNumber - 1) * 30 + 
+                      (stage.responses.length / selectedModels.length) * 30,
+                      90
+                    ),
+                  }));
+                }
+                break;
 
-            case 'stage_complete':
-              console.log(`🏁 阶段 ${event.stageNumber} 完成`);
-              if (event.stage) {
-                setDebateResult(prev => {
-                  if (!prev) return prev;
-                  const updated = { ...prev };
-                  updated.duration = Date.now() - startTime;
-                  
+              case 'stage_complete':
+                if (event.stage) {
                   const stageIndex = event.stageNumber - 1;
-                  if (updated.stages[stageIndex] && event.stage) {
+                  if (updated.stages[stageIndex]) {
                     updated.stages[stageIndex] = event.stage;
                   }
-                  return updated;
-                });
-              }
-              break;
+                }
+                break;
 
-            case 'debate_complete':
-              console.log('🎉 辩论完成!');
-              setDebateResult(prev => {
-                if (!prev) return prev;
-                const updated = { ...prev };
+              case 'debate_complete':
                 updated.isComplete = true;
                 updated.summary = event.summary;
-                updated.duration = Date.now() - startTime;
-                return updated;
-              });
-              
-              setLoadingState({
-                isLoading: false,
-                currentStage: null,
-                currentModel: null,
-                progress: 100,
-              });
-              message.success('辩论完成！');
-              break;
-          }
+                setLoadingState({
+                  isLoading: false,
+                  currentStage: null,
+                  currentModel: null,
+                  progress: 100,
+                });
+                message.success('辩论完成！');
+                break;
+            }
+
+            return updated;
+          });
         });
-        console.log('✅ 流式辩论完成');
       } else {
-        console.log('🔄 使用传统辩论模式');
         // 使用传统模式
         const progressInterval = setInterval(() => {
           setLoadingState(prev => ({
@@ -338,7 +308,7 @@ export default function HomePage() {
               <QuestionInput
                 onSubmit={handleQuestionSubmit}
                 isLoading={loadingState.isLoading}
-                placeholder="请输入您想要探讨的问题。"
+                placeholder="请输入您想要探讨的问题，例如：人工智能对教育的影响是什么？"
               />
             </div>
 

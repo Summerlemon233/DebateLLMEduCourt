@@ -134,11 +134,9 @@ export class StreamingDebateEngine {
     // 顺序处理每个模型以实现实时更新
     for (const model of request.models) {
       try {
-        console.log(`🔄 正在处理模型: ${model}`);
         const client = this.llmFactory.getClient(model as any);
         const response = await client.generateResponse(prompt, request.config);
         
-        console.log(`✅ 模型 ${model} 响应完成，立即发送事件`);
         // 立即发送模型响应事件
         onUpdate({
           type: 'model_response',
@@ -204,11 +202,9 @@ export class StreamingDebateEngine {
     // 顺序处理每个模型
     for (const model of request.models) {
       try {
-        console.log(`🔄 阶段2处理模型: ${model}`);
         const client = this.llmFactory.getClient(model as any);
         const response = await client.generateResponse(prompt, request.config);
         
-        console.log(`✅ 阶段2模型 ${model} 响应完成`);
         onUpdate({
           type: 'model_response',
           stageNumber: 2,
@@ -274,11 +270,9 @@ export class StreamingDebateEngine {
     // 顺序处理每个模型
     for (const model of request.models) {
       try {
-        console.log(`🔄 阶段3处理模型: ${model}`);
         const client = this.llmFactory.getClient(model as any);
         const response = await client.generateResponse(prompt, request.config);
         
-        console.log(`✅ 阶段3模型 ${model} 响应完成`);
         onUpdate({
           type: 'model_response',
           stageNumber: 3,

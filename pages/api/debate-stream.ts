@@ -3,7 +3,6 @@ import { LLMFactory } from '../../api/llm/factory';
 import { StreamingDebateEngine } from '../../api/debate/streaming-engine';
 import { DebateError } from '../../api/utils/error-handler';
 import type { DebateRequest } from '../../api/debate/streaming-engine';
-import type { DebateUpdateEvent } from '../../src/types';
 
 // 创建全局LLM工厂实例
 let llmFactory: LLMFactory | null = null;
@@ -59,24 +58,21 @@ export default async function handler(
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // 创建流式辩论引擎
+    // 创建流式辞论引擎
     const factory = getLLMFactory();
     const streamingEngine = new StreamingDebateEngine(factory);
 
-    console.log('🚀 开始流式辩论，模型:', models);
-
-    // 使用真正的流式辩论引擎
+    // 启动真正的流式辩论
     await streamingEngine.runStreamingDebate({
       question,
       models,
       config
-    }, (event: DebateUpdateEvent) => {
-      console.log('📡 发送事件:', event.type, event.model || '');
-      // 实时发送事件
+    }, (event) => {
+      // 实时发送每个事件
       res.write(`data: ${JSON.stringify(event)}\n\n`);
+      console.log('📡 发送流式事件:', event.type, event);
     });
 
-    console.log('✅ 流式辩论完成');
     // 发送完成事件
     res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
     res.end();

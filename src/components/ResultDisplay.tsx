@@ -17,6 +17,14 @@ import type { ResultDisplayProps, DebateStage, LLMResponse, RealtimeDebateResult
 const { Title, Text, Paragraph } = Typography;
 
 const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
+  // 添加调试日志
+  console.log('🖼️ ResultDisplay 重新渲染:', {
+    hasResult: !!result,
+    isLoading,
+    stages: result?.stages?.length || 0,
+    isComplete: 'isComplete' in (result || {}) ? (result as RealtimeDebateResult).isComplete : 'N/A'
+  });
+
   // 如果正在加载或没有结果，显示空状态
   if (isLoading || !result) {
     return (
@@ -69,9 +77,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     }
   };
 
-  // 渲染单个模型响应
-  const renderModelResponse = (response: LLMResponse, index: number) => {
+  // 渲染单个模型响应，包括加载状态
+  const renderModelResponse = (response: LLMResponse, index: number, isLoading?: boolean) => {
     const hasContent = response.content && response.content.trim().length > 0;
+    console.log(`🤖 渲染模型响应: ${response.model}, 有内容: ${hasContent}, 内容长度: ${response.content?.length || 0}, 加载中: ${isLoading}`);
     
     return (
       <Card
@@ -79,27 +88,48 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         size="small"
         style={{
           marginBottom: '16px',
-          border: hasContent ? '1px solid #e1e5e9' : '1px solid #ffccc7',
-          background: hasContent ? 'white' : '#fff2f0',
+          border: isLoading ? '1px solid #faad14' : hasContent ? '1px solid #e1e5e9' : '1px solid #ffccc7',
+          background: isLoading ? '#fffbe6' : hasContent ? 'white' : '#fff2f0',
         }}
       >
         <div style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RobotOutlined style={{ color: '#4facfe' }} />
+              <RobotOutlined style={{ color: isLoading ? '#faad14' : '#4facfe' }} />
               <Text strong style={{ fontSize: '16px' }}>
                 {getModelName(response.model)}
               </Text>
-              {getResponseStatusBadge(response)}
+              {isLoading ? (
+                <Badge status="processing" text="生成中..." />
+              ) : (
+                getResponseStatusBadge(response)
+              )}
             </div>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               <ClockCircleOutlined style={{ marginRight: '4px' }} />
-              {formatTimestamp(response.timestamp)}
+              {isLoading ? '...' : formatTimestamp(response.timestamp)}
             </Text>
           </div>
         </div>
 
-        {hasContent ? (
+        {isLoading ? (
+          <div style={{
+            background: '#fffbe6',
+            padding: '16px',
+            borderRadius: '8px',
+            textAlign: 'center',
+            border: '1px solid #faad14'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <div className="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <Text type="secondary">AI正在思考和生成回复...</Text>
+            </div>
+          </div>
+        ) : hasContent ? (
           <div
             style={{
               background: '#f8f9fa',
@@ -170,15 +200,20 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     );
   };
 
-  // 渲染辩论阶段
-  const renderDebateStage = (
+  // 渲染阶段，包括正在进行的模型
+  const renderDebateStageWithLoading = (
     stage: DebateStage,
     stageNumber: number,
     title: string,
     description: string,
     icon: React.ReactNode,
-    color: string
+    color: string,
+    isCurrentStage?: boolean,
+    expectedModels?: string[]
   ) => {
+    const completedModels = stage.responses.map(r => r.model);
+    const pendingModels = expectedModels ? expectedModels.filter(m => !completedModels.includes(m)) : [];
+
     return (
       <div style={{ marginBottom: '32px' }}>
         <div style={{ 
@@ -195,6 +230,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
           <Title level={3} style={{ margin: 0, color }}>
             {title}
           </Title>
+          {isCurrentStage && (
+            <Badge status="processing" text="进行中" style={{ marginLeft: '8px' }} />
+          )}
           <Tag color={color} style={{ marginLeft: 'auto' }}>
             {formatTimestamp(stage.startTime)}
           </Tag>
@@ -210,8 +248,19 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         </Text>
 
         <div>
+          {/* 渲染已完成的响应 */}
           {stage.responses.map((response, index) => 
             renderModelResponse(response, index)
+          )}
+          
+          {/* 渲染正在等待的模型 */}
+          {isCurrentStage && pendingModels.map((model, index) => 
+            renderModelResponse({
+              model,
+              content: '',
+              timestamp: '',
+              responseTime: 0
+            }, completedModels.length + index, true)
           )}
         </div>
       </div>
@@ -330,14 +379,18 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         ];
 
         const config = stageConfigs[index] || stageConfigs[stageConfigs.length - 1];
+        const isCurrentStage = isRealtimeResult && !realtimeResult.isComplete && 
+                               realtimeResult.currentStage === stage.stage;
         
-        return renderDebateStage(
+        return renderDebateStageWithLoading(
           stage,
           index + 1,
           config.title,
           config.description,
           config.icon,
-          config.color
+          config.color,
+          isCurrentStage,
+          result.models
         );
       })}
 
