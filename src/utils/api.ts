@@ -48,13 +48,44 @@ api.interceptors.response.use(
 );
 
 /**
- * 发起辩论请求
+ * 发起辩论请求（带阶段更新回调）
  * @param request 辩论请求参数
+ * @param onStageUpdate 阶段更新回调
  * @returns Promise<DebateResult>
  */
-export const startDebate = async (request: DebateRequest): Promise<DebateResult> => {
+export const startDebate = async (
+  request: DebateRequest, 
+  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string) => void
+): Promise<DebateResult> => {
   try {
+    // 模拟阶段更新（因为当前API不支持SSE，我们用定时器模拟）
+    let currentProgress = 0;
+    const stages: Array<'initial' | 'refined' | 'final'> = ['initial', 'refined', 'final'];
+    let currentStageIndex = 0;
+    
+    const updateInterval = setInterval(() => {
+      if (onStageUpdate && currentStageIndex < stages.length) {
+        const stage = stages[currentStageIndex];
+        const stageProgress = Math.min(currentProgress + Math.random() * 15, 90);
+        onStageUpdate(stage, stageProgress);
+        currentProgress = stageProgress;
+        
+        // 每30%进度切换到下一阶段
+        if (currentProgress >= (currentStageIndex + 1) * 30) {
+          currentStageIndex++;
+        }
+      }
+    }, 1500);
+
     const response = await api.post<DebateApiResponse>('/debate', request);
+    
+    // 清除定时器
+    clearInterval(updateInterval);
+    
+    // 最终阶段完成
+    if (onStageUpdate) {
+      onStageUpdate('final', 100);
+    }
     
     if (response.data.success && response.data.data) {
       return response.data.data;

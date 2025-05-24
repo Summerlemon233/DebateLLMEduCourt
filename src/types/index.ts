@@ -106,6 +106,15 @@ export interface ResultDisplayProps {
   isLoading: boolean;
 }
 
+// 阶段更新回调类型
+export interface StageUpdateCallback {
+  (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string): void;
+}
+
+export interface DebateRequestWithCallback extends DebateRequest {
+  onStageUpdate?: StageUpdateCallback;
+}
+
 // API响应类型
 export interface DebateApiResponse {
   success: boolean;

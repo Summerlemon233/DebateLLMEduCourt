@@ -105,19 +105,18 @@ export default function HomePage() {
         models: selectedModels,
       };
 
-      // 模拟进度更新
-      const progressInterval = setInterval(() => {
+      // 阶段更新回调
+      const handleStageUpdate = (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string) => {
         setLoadingState(prev => ({
           ...prev,
-          progress: Math.min(prev.progress + Math.random() * 10, 90),
+          currentStage: stage,
+          progress: Math.round(progress),
+          currentModel: currentModel || null,
         }));
-      }, 1000);
+      };
 
       // 发起辩论请求
-      const result = await startDebate(request);
-
-      // 清除进度更新
-      clearInterval(progressInterval);
+      const result = await startDebate(request, handleStageUpdate);
 
       // 设置结果
       setDebateResult(result);
