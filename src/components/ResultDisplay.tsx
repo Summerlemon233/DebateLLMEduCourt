@@ -22,7 +22,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     hasResult: !!result,
     isLoading,
     stages: result?.stages?.length || 0,
-    isComplete: 'isComplete' in (result || {}) ? (result as RealtimeDebateResult).isComplete : 'N/A'
+    currentStage: 'currentStage' in (result || {}) ? (result as RealtimeDebateResult).currentStage : 'N/A',
+    isComplete: 'isComplete' in (result || {}) ? (result as RealtimeDebateResult).isComplete : 'N/A',
+    totalResponses: result?.stages?.reduce((sum, stage) => sum + stage.responses.length, 0) || 0,
+    stagesWithResponses: result?.stages?.map(s => ({ stage: s.stage, responses: s.responses.length })) || []
   });
 
   // 如果正在加载或没有结果，显示空状态
@@ -215,7 +218,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
     const pendingModels = expectedModels ? expectedModels.filter(m => !completedModels.includes(m)) : [];
 
     return (
-      <div style={{ marginBottom: '32px' }}>
+      <div 
+        key={`stage-${stageNumber}`}
+        data-stage={stageNumber}
+        style={{ marginBottom: '32px' }}
+      >
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -379,8 +386,28 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading }) => {
         ];
 
         const config = stageConfigs[index] || stageConfigs[stageConfigs.length - 1];
+        
+        // 修复当前阶段的判断逻辑
         const isCurrentStage = isRealtimeResult && !realtimeResult.isComplete && 
                                realtimeResult.currentStage === stage.stage;
+        
+        // 如果阶段已经完成，显示所有响应
+        // 如果是当前阶段且未完成，可能需要显示部分响应
+        const shouldShowStage = stage.responses.length > 0 || isCurrentStage;
+        
+        console.log(`🎭 渲染阶段 ${stage.stage}:`, {
+          stageNumber: stage.stage,
+          responsesCount: stage.responses.length,
+          isCurrentStage,
+          shouldShowStage,
+          currentStageFromResult: isRealtimeResult ? realtimeResult.currentStage : 'N/A',
+          isComplete: isRealtimeResult ? realtimeResult.isComplete : 'N/A'
+        });
+        
+        // 只显示有响应或当前进行中的阶段
+        if (!shouldShowStage) {
+          return null;
+        }
         
         return renderDebateStageWithLoading(
           stage,
