@@ -337,3 +337,64 @@ body {
   background-color: #4facfe;
   border-color: #4facfe;
 }
+
+.ant-layout-header {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+  padding: 30px 50px;
+  height: auto;
+}
+
+.ant-timeline-item-head {
+  border-color: #4facfe;
+}
+
+.ant-progress-inner {
+  border-radius: 8px;
+}
+
+.ant-select-selector {
+  border-radius: 8px !important;
+}
+
+.ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 8px 8px 0 0;
+}
+
+/* 组件特定样式 */
+.model-card.selected .ant-card-body {
+  background: #f0f9ff;
+}
+
+.loading-container .ant-spin-dot {
+  color: #4facfe;
+}
+
+.results-container .ant-timeline-item-tail {
+  border-left-color: #e1e5e9;
+}
+
+.results-container .ant-badge-status-dot {
+  width: 8px;
+  height: 8px;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
