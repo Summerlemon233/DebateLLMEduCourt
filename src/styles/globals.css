@@ -669,6 +669,59 @@ body {
   white-space: pre-wrap;
 }
 
+/* 优化Markdown渲染的字体间距 */
+.response-content p {
+  letter-spacing: 0.02em !important;
+  line-height: 1.6 !important;
+  margin-bottom: 16px !important;
+}
+
+.response-content {
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+/* LaTeX公式样式优化 */
+.katex {
+  font-size: 1.1em;
+  margin: 0.2em 0;
+}
+
+.katex-display {
+  margin: 1em 0;
+  text-align: center;
+}
+
+.katex-error {
+  color: #cc0000;
+  background-color: #ffeeee;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* EoT选择器样式优化 */
+.ant-radio-wrapper {
+  display: flex !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+}
+
+.ant-radio {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ant-radio + span {
+  flex: 1;
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+/* 确保Card内容不溢出 */
+.ant-card-body {
+  overflow: hidden;
+}
+
 /* 总结区域 */
 .summary-container {
   background: white;

@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Typography, Tag, Space, Tabs, Empty, Button, message, Tooltip, Modal } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -324,7 +327,13 @@ ${result.summary || '无总结'}
       </Typography.Title>
     ),
     p: ({ children }: any) => (
-      <Typography.Paragraph style={{ marginBottom: '16px', lineHeight: '1.8', fontSize: '1rem', color: 'var(--text-primary)' }}>
+      <Typography.Paragraph style={{ 
+        marginBottom: '16px', 
+        lineHeight: '1.6', 
+        fontSize: '1rem', 
+        color: 'var(--text-primary)',
+        letterSpacing: '0.02em'
+      }}>
         {children}
       </Typography.Paragraph>
     ),
@@ -382,7 +391,8 @@ ${result.summary || '无总结'}
           {hasContent ? (
             <ReactMarkdown 
               components={MarkdownComponents as any}
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
             >
               {response.content}
             </ReactMarkdown>
@@ -471,7 +481,8 @@ ${result.summary || '无总结'}
           <div className="summary-content">
             <ReactMarkdown 
               components={MarkdownComponents as any}
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
             >
               {result.summary}
             </ReactMarkdown>

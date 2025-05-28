@@ -82,10 +82,17 @@ const EoTSelector: React.FC<EoTSelectorProps> = ({
                 padding: '12px',
                 border: selectedStrategy === strategy.strategy ? '2px solid #1890ff' : '1px solid #d9d9d9',
                 borderRadius: '8px',
-                backgroundColor: selectedStrategy === strategy.strategy ? '#f6ffed' : '#fafafa'
+                backgroundColor: selectedStrategy === strategy.strategy ? '#f6ffed' : '#fafafa',
+                display: 'flex',
+                alignItems: 'flex-start'
               }}
             >
-              <div style={{ marginLeft: '8px' }}>
+              <div style={{ 
+                marginLeft: '8px', 
+                width: '100%',
+                wordWrap: 'break-word',
+                overflow: 'hidden'
+              }}>
                 <div style={{ marginBottom: '4px' }}>
                   <Text strong style={{ fontSize: '16px' }}>
                     {strategy.name}
@@ -95,10 +102,21 @@ const EoTSelector: React.FC<EoTSelectorProps> = ({
                   </Text>
                 </div>
                 <div style={{ marginBottom: '8px' }}>
-                  <Text>{strategy.description}</Text>
+                  <Text style={{ 
+                    display: 'block',
+                    lineHeight: '1.5',
+                    wordBreak: 'break-word'
+                  }}>
+                    {strategy.description}
+                  </Text>
                 </div>
                 <div>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                  <Text type="secondary" style={{ 
+                    fontSize: '12px',
+                    display: 'block',
+                    lineHeight: '1.4',
+                    wordBreak: 'break-word'
+                  }}>
                     <strong>通信模式：</strong>{strategy.communicationPattern}
                   </Text>
                 </div>

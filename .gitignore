@@ -77,3 +77,7 @@ tmp/
 temp/
 
 paper.md
+*.tex
+*.pdf
+instruction.md
+FIXES_SUMMARY.md
