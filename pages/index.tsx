@@ -15,15 +15,17 @@ import AccessibilityToolbar from '../src/components/AccessibilityToolbar';
 
 import QuestionInput from '../src/components/QuestionInput';
 import ModelSelector from '../src/components/ModelSelector';
+import EoTSelector from '../src/components/EoTSelector';
 import LoadingIndicator from '../src/components/LoadingIndicator';
 import ResultDisplay from '../src/components/ResultDisplay';
 
-import { startDebate } from '../src/utils/api';
+import { startDebate, startEoTReasoning } from '../src/utils/api';
 import type { 
   DebateResult, 
   LoadingState, 
   ModelConfig,
-  DebateRequest 
+  DebateRequest,
+  EoTStrategy
 } from '../src/types';
 
 const { Header, Content } = Layout;
@@ -82,6 +84,7 @@ export default function HomePage() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('default');
   const [selectedModels, setSelectedModels] = useState<string[]>(['deepseek', 'qwen', 'hunyuan']);
+  const [selectedEoTStrategy, setSelectedEoTStrategy] = useState<EoTStrategy>('debate');
   const [debateResult, setDebateResult] = useState<DebateResult | null>(null);
   const [partialResult, setPartialResult] = useState<DebateResult | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>({
@@ -90,6 +93,7 @@ export default function HomePage() {
     currentModel: null,
     progress: 0,
   });
+  const [eotStrategy, setEoTStrategy] = useState<EoTStrategy | null>(null);
   
   // 从 localStorage 加载主题
   useEffect(() => {
@@ -173,101 +177,117 @@ export default function HomePage() {
       progress: 0,
     });
 
+    // 阶段更新回调
+    const handleStageUpdate = (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => {
+      console.log('🔄 [Frontend] ========== Stage Update Received ==========');
+      console.log('🔄 [Frontend] Received parameters:', { stage, progress, currentModel, message });
+      console.log('🔄 [Frontend] Call timestamp:', new Date().toISOString());
+      console.log('🔍 [Frontend] Previous loading state:', JSON.stringify(loadingState, null, 2));
+      
+      // 验证参数
+      if (typeof progress !== 'number' || isNaN(progress)) {
+        console.error('❌ [Frontend] Invalid progress value:', progress);
+        return;
+      }
+      
+      if (!['initial', 'refined', 'final'].includes(stage)) {
+        console.error('❌ [Frontend] Invalid stage value:', stage);
+        return;
+      }
+      
+      console.log('✅ [Frontend] Parameters validation passed');
+      
+      setLoadingState(prev => {
+        console.log('🔧 [Frontend] Current state in setState:', JSON.stringify(prev, null, 2));
+        
+        const newState = {
+          ...prev,
+          currentStage: stage,
+          progress: Math.round(progress),
+          currentModel: currentModel || null,
+        };
+        
+        console.log('🔧 [Frontend] New state to be set:', JSON.stringify(newState, null, 2));
+        console.log('🔧 [Frontend] State changes:');
+        console.log(`    - Stage: ${prev.currentStage} → ${newState.currentStage}`);
+        console.log(`    - Progress: ${prev.progress}% → ${newState.progress}%`);
+        console.log(`    - Model: ${prev.currentModel} → ${newState.currentModel}`);
+        
+        return newState;
+      });
+      
+      // 延迟检查状态是否真的更新了
+      setTimeout(() => {
+        console.log('⏰ [Frontend] Post-update loading state check:', JSON.stringify(loadingState, null, 2));
+      }, 100);
+      
+      console.log('✅ [Frontend] Stage update callback completed');
+      console.log('🔄 [Frontend] ==========================================');
+    };
+
+    // 阶段完成回调
+    const handleStageComplete = (stageNumber: number, stageData: any) => {
+      console.log(`🎯 [Frontend] ========== Stage ${stageNumber} Complete ==========`);
+      console.log('📊 [Frontend] Stage data received:', stageData);
+      
+      setPartialResult(prev => {
+        const currentQuestion = question.trim();
+        const newResult: DebateResult = prev || {
+          question: currentQuestion,
+          models: selectedModels,
+          stages: [],
+          summary: '',
+          timestamp: new Date().toISOString(),
+          duration: 0
+        };
+        
+        // 创建新的stages数组，确保按顺序添加
+        const updatedStages = [...newResult.stages];
+        
+        // 确保阶段按顺序存储
+        const stageIndex = stageNumber - 1;
+        if (stageIndex >= 0) {
+          updatedStages[stageIndex] = stageData;
+        }
+        
+        console.log(`✅ [Frontend] Updated partial result with stage ${stageNumber}`);
+        console.log('📊 [Frontend] Current stages count:', updatedStages.length);
+        
+        return {
+          ...newResult,
+          stages: updatedStages
+        };
+      });
+      
+      console.log(`🎯 [Frontend] ==========================================`);
+    };
+
     try {
-      const request: DebateRequest = {
-        question: question.trim(),
-        models: selectedModels,
-      };
+      // 根据选择的策略决定使用哪个API
+      if (selectedEoTStrategy === 'debate') {
+        // 使用原有的辩论API
+        const request: DebateRequest = {
+          question: question.trim(),
+          models: selectedModels,
+        };
 
-      // 阶段更新回调
-      const handleStageUpdate = (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => {
-        console.log('🔄 [Frontend] ========== Stage Update Received ==========');
-        console.log('🔄 [Frontend] Received parameters:', { stage, progress, currentModel, message });
-        console.log('🔄 [Frontend] Call timestamp:', new Date().toISOString());
-        console.log('🔍 [Frontend] Previous loading state:', JSON.stringify(loadingState, null, 2));
-        
-        // 验证参数
-        if (typeof progress !== 'number' || isNaN(progress)) {
-          console.error('❌ [Frontend] Invalid progress value:', progress);
-          return;
-        }
-        
-        if (!['initial', 'refined', 'final'].includes(stage)) {
-          console.error('❌ [Frontend] Invalid stage value:', stage);
-          return;
-        }
-        
-        console.log('✅ [Frontend] Parameters validation passed');
-        
-        setLoadingState(prev => {
-          console.log('🔧 [Frontend] Current state in setState:', JSON.stringify(prev, null, 2));
-          
-          const newState = {
-            ...prev,
-            currentStage: stage,
-            progress: Math.round(progress),
-            currentModel: currentModel || null,
-          };
-          
-          console.log('🔧 [Frontend] New state to be set:', JSON.stringify(newState, null, 2));
-          console.log('🔧 [Frontend] State changes:');
-          console.log(`    - Stage: ${prev.currentStage} → ${newState.currentStage}`);
-          console.log(`    - Progress: ${prev.progress}% → ${newState.progress}%`);
-          console.log(`    - Model: ${prev.currentModel} → ${newState.currentModel}`);
-          
-          return newState;
-        });
-        
-        // 延迟检查状态是否真的更新了
-        setTimeout(() => {
-          console.log('⏰ [Frontend] Post-update loading state check:', JSON.stringify(loadingState, null, 2));
-        }, 100);
-        
-        console.log('✅ [Frontend] Stage update callback completed');
-        console.log('🔄 [Frontend] ==========================================');
-      };
+        const result = await startDebate(request, handleStageUpdate, handleStageComplete);
+        setDebateResult(result);
+        message.success('辩论完成！');
+      } else {
+        // 使用新的EoT API
+        const eotRequest = {
+          question: question.trim(),
+          models: selectedModels,
+          eotStrategy: selectedEoTStrategy,
+        };
 
-      // 阶段完成回调
-      const handleStageComplete = (stageNumber: number, stageData: any) => {
-        console.log(`🎯 [Frontend] ========== Stage ${stageNumber} Complete ==========`);
-        console.log('📊 [Frontend] Stage data received:', stageData);
-        
-        setPartialResult(prev => {
-          const newResult: DebateResult = prev || {
-            question: request.question,
-            models: request.models,
-            stages: [],
-            summary: '',
-            timestamp: new Date().toISOString(),
-            duration: 0
-          };
-          
-          // 创建新的stages数组，确保按顺序添加
-          const updatedStages = [...newResult.stages];
-          
-          // 确保阶段按顺序存储
-          const stageIndex = stageNumber - 1;
-          if (stageIndex >= 0) {
-            updatedStages[stageIndex] = stageData;
-          }
-          
-          console.log(`✅ [Frontend] Updated partial result with stage ${stageNumber}`);
-          console.log('📊 [Frontend] Current stages count:', updatedStages.length);
-          
-          return {
-            ...newResult,
-            stages: updatedStages
-          };
-        });
-        
-        console.log(`🎯 [Frontend] ==========================================`);
-      };
+        const result = await startEoTReasoning(eotRequest, handleStageUpdate, handleStageComplete);
+        setDebateResult(result);
+        message.success(`${selectedEoTStrategy}策略推理完成！`);
+      }
 
-      // 发起辩论请求
-      const result = await startDebate(request, handleStageUpdate, handleStageComplete);
-
-      // 设置结果
-      setDebateResult(result);
+      // 设置最终状态
       setLoadingState({
         isLoading: false,
         currentStage: null,
@@ -275,9 +295,8 @@ export default function HomePage() {
         progress: 100,
       });
 
-      message.success('辩论完成！');
     } catch (error) {
-      console.error('Debate error:', error);
+      console.error('Processing error:', error);
       
       setLoadingState({
         isLoading: false,
@@ -286,7 +305,7 @@ export default function HomePage() {
         progress: 0,
       });
 
-      const errorMessage = error instanceof Error ? error.message : '辩论过程中发生错误';
+      const errorMessage = error instanceof Error ? error.message : '推理过程中发生错误';
       message.error(errorMessage);
     }
   };
@@ -294,6 +313,11 @@ export default function HomePage() {
   // 处理模型选择变化
   const handleModelChange = (models: string[]) => {
     setSelectedModels(models);
+  };
+
+  // 处理EoT策略选择变化
+  const handleEoTChange = (strategy: EoTStrategy) => {
+    setEoTStrategy(strategy);
   };
 
   return (
@@ -535,6 +559,27 @@ export default function HomePage() {
                 models={DEFAULT_MODELS}
                 selectedModels={selectedModels}
                 onModelChange={handleModelChange}
+                disabled={loadingState.isLoading}
+              />
+            </motion.div>
+
+            {/* EoT策略选择区域 */}
+            <motion.div 
+              className="eot-selector-section"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 30 }}
+              transition={{ duration: 0.6, delay: 1.4 }}
+            >
+              <h3>
+                <span><RobotOutlined /></span>
+                选择EoT策略
+              </h3>
+              <p className="eot-info-text">
+                选择一种EoT策略，帮助AI更好地理解问题的上下文和细节
+              </p>
+              <EoTSelector
+                selectedStrategy={selectedEoTStrategy}
+                onStrategyChange={setSelectedEoTStrategy}
                 disabled={loadingState.isLoading}
               />
             </motion.div>

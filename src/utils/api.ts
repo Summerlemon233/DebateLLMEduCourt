@@ -1,6 +1,22 @@
 // 前端API调用工具函数
 import axios, { AxiosResponse } from 'axios';
-import { DebateRequest, DebateApiResponse, DebateResult } from '@/types';
+import { DebateRequest, DebateApiResponse, DebateResult, EoTStrategy } from '@/types';
+
+// EoT请求接口
+export interface EoTRequest {
+  question: string;
+  models: string[];
+  config?: any;
+  eotStrategy: EoTStrategy;
+}
+
+// EoT响应接口
+export interface EoTApiResponse {
+  success: boolean;
+  data?: DebateResult;
+  error?: string;
+  timestamp: string;
+}
 
 // 创建axios实例
 const api = axios.create({
@@ -471,5 +487,100 @@ export const formatErrorMessage = (error: any): string => {
 export const delay = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
+
+/**
+ * 发起EoT推理请求
+ * @param request EoT请求参数
+ * @param onStageUpdate 阶段更新回调
+ * @param onStageComplete 阶段完成回调
+ * @returns Promise<DebateResult>
+ */
+export const startEoTReasoning = async (
+  request: EoTRequest,
+  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => void,
+  onStageComplete?: (stageNumber: number, stageData: any) => void
+): Promise<DebateResult> => {
+  console.log('🚀 [EoT] ========== Starting EoT Reasoning ==========');
+  console.log('📋 [EoT] Request:', JSON.stringify(request, null, 2));
+  console.log('🔄 [EoT] Strategy:', request.eotStrategy);
+  console.log('🕐 [EoT] Start time:', new Date().toISOString());
+
+  try {
+    // 模拟进度更新
+    let currentProgress = 0;
+    const stageNames: Array<'initial' | 'refined' | 'final'> = ['initial', 'refined', 'final'];
+    let currentStageIndex = 0;
+
+    if (onStageUpdate) {
+      console.log('🔄 [EoT] Setting up progress simulation');
+      
+      const updateInterval = setInterval(() => {
+        if (currentStageIndex < stageNames.length) {
+          const stage = stageNames[currentStageIndex];
+          const stageProgress = Math.min(currentProgress + Math.random() * 12, 85);
+          
+          console.log(`🎯 [EoT] Progress update: ${stage} ${stageProgress}%`);
+          onStageUpdate(stage, stageProgress, undefined, `正在执行${request.eotStrategy}策略...`);
+          currentProgress = stageProgress;
+          
+          // 根据策略调整阶段切换逻辑
+          const stageThreshold = getStageThreshold(request.eotStrategy, currentStageIndex);
+          if (currentProgress >= stageThreshold) {
+            currentStageIndex++;
+            console.log(`➡️ [EoT] Moving to stage index: ${currentStageIndex}`);
+          }
+        }
+      }, 2000);
+      
+      // 清理函数
+      setTimeout(() => {
+        clearInterval(updateInterval);
+        console.log('🧹 [EoT] Cleared progress interval');
+      }, 60000); // 60秒后自动清理
+    }
+
+    console.log('📤 [EoT] Making API request to /eot');
+    const response = await api.post<EoTApiResponse>('/eot', request);
+    console.log('✅ [EoT] API request completed');
+    
+    // 最终阶段完成
+    if (onStageUpdate) {
+      console.log('🎉 [EoT] Setting final progress to 100%');
+      onStageUpdate('final', 100, undefined, '推理完成');
+    }
+    
+    if (response.data.success && response.data.data) {
+      console.log('✅ [EoT] Reasoning completed successfully');
+      return response.data.data;
+    } else {
+      console.error('❌ [EoT] API returned error:', response.data.error);
+      throw new Error(response.data.error || 'EoT推理请求失败');
+    }
+  } catch (error) {
+    console.error('❌ [EoT] Start EoT reasoning error:', error);
+    
+    if (axios.isAxiosError(error)) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+    }
+    
+    throw error;
+  }
+};
+
+/**
+ * 根据EoT策略获取阶段切换阈值
+ */
+function getStageThreshold(strategy: EoTStrategy, stageIndex: number): number {
+  const thresholds: Record<EoTStrategy, number[]> = {
+    'debate': [30, 60, 90],
+    'memory': [35, 70, 90],
+    'report': [25, 65, 90],
+    'relay': [40, 80, 90] // relay通常阶段较少但每阶段更长
+  };
+  
+  return thresholds[strategy]?.[stageIndex] || 30 * (stageIndex + 1);
+}
 
 export default api;

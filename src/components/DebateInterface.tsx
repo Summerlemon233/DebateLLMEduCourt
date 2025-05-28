@@ -2,12 +2,14 @@ import React from 'react';
 import { Layout } from 'antd';
 import QuestionInput from './QuestionInput';
 import ModelSelector from './ModelSelector';
+import EoTSelector from './EoTSelector';
 import LoadingIndicator from './LoadingIndicator';
 import ResultDisplay from './ResultDisplay';
 import type { 
   DebateResult, 
   LoadingState, 
   ModelConfig,
+  EoTStrategy,
   QuestionInputProps,
   ModelSelectorProps,
   LoadingIndicatorProps,
@@ -25,6 +27,10 @@ interface DebateInterfaceProps {
   selectedModels: string[];
   onModelChange: ModelSelectorProps['onModelChange'];
   
+  // EoT策略相关
+  selectedEoTStrategy: EoTStrategy;
+  onEoTStrategyChange: (strategy: EoTStrategy) => void;
+  
   // 状态相关
   loadingState: LoadingState;
   debateResult: DebateResult | null;
@@ -39,6 +45,8 @@ const DebateInterface: React.FC<DebateInterfaceProps> = ({
   models,
   selectedModels,
   onModelChange,
+  selectedEoTStrategy,
+  onEoTStrategyChange,
   loadingState,
   debateResult,
 }) => {
@@ -50,6 +58,15 @@ const DebateInterface: React.FC<DebateInterfaceProps> = ({
           onSubmit={onQuestionSubmit}
           isLoading={loadingState.isLoading}
           placeholder="请输入您想要探讨的问题，例如：人工智能对教育的影响是什么？"
+        />
+      </div>
+
+      {/* EoT策略选择区域 */}
+      <div style={{ marginBottom: '32px' }}>
+        <EoTSelector
+          selectedStrategy={selectedEoTStrategy}
+          onStrategyChange={onEoTStrategyChange}
+          disabled={loadingState.isLoading}
         />
       </div>
 

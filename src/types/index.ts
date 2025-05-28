@@ -11,6 +11,7 @@ export interface DebateRequest {
   question: string;
   models: string[]; // 修改为与后端匹配
   config?: ModelConfig;
+  eotStrategy?: EoTStrategy; // 添加EoT策略选项
 }
 
 export interface LLMResponse {
@@ -126,4 +127,15 @@ export interface DebateApiResponse {
   data?: DebateResult;
   error?: string;
   timestamp: string;
+}
+
+// EoT策略类型定义
+export type EoTStrategy = 'debate' | 'memory' | 'report' | 'relay';
+
+export interface EoTStrategyConfig {
+  strategy: EoTStrategy;
+  name: string;
+  description: string;
+  stages: number;
+  communicationPattern: string;
 }
