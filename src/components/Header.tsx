@@ -58,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, currentTheme, isPageLoaded
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.7 }}
           >
-            多LLM辩论教育平台
+            AI思辨场：多模型激荡智慧
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, currentTheme, isPageLoaded
             transition={{ duration: 0.8, delay: 0.9 }}
           >
             <BulbOutlined style={{ marginRight: '10px' }} />
-            通过AI模型间的辩论与审视，获得更全面、准确的答案
+            跨越单一视角，在AI的深度对话中探寻更优解
           </motion.p>
         </div>
       </div>

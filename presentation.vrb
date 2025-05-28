@@ -1,0 +1,28 @@
+\frametitle{LLM客户端抽象设计}
+\begin{lstlisting}[language=JavaScript]
+// 统一的LLM接口
+export abstract class BaseLLMClient {
+  abstract async generateResponse(
+    prompt: string,
+    options?: any
+  ): Promise<string>;
+
+  abstract async generateStreamResponse(
+    prompt: string,
+    options?: any
+  ): AsyncGenerator<string, void, unknown>;
+}
+
+// 工厂模式创建客户端
+export class LLMFactory {
+  static createClient(provider: string): BaseLLMClient {
+    switch (provider) {
+      case 'deepseek': return new DeepSeekClient();
+      case 'qwen': return new QwenClient();
+      case 'doubao': return new DoubaoClient();
+      // ... 其他模型
+      default: throw new Error(`Unknown provider: ${provider}`);
+    }
+  }
+}
+\end{lstlisting}
