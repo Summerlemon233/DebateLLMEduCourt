@@ -19,7 +19,7 @@ import EoTSelector from '../src/components/EoTSelector';
 import LoadingIndicator from '../src/components/LoadingIndicator';
 import ResultDisplay from '../src/components/ResultDisplay';
 
-import { startDebate, startEoTReasoning } from '../src/utils/api';
+import { startDebate, startEoTReasoning, startEoTReasoningWithStream } from '../src/utils/api';
 import type { 
   DebateResult, 
   LoadingState, 
@@ -275,14 +275,14 @@ export default function HomePage() {
         setDebateResult(result);
         message.success('辩论完成！');
       } else {
-        // 使用新的EoT API
+        // 使用新的EoT流式传输API
         const eotRequest = {
           question: question.trim(),
           models: selectedModels,
           eotStrategy: selectedEoTStrategy,
         };
 
-        const result = await startEoTReasoning(eotRequest, handleStageUpdate, handleStageComplete);
+        const result = await startEoTReasoningWithStream(eotRequest, handleStageUpdate, handleStageComplete);
         setDebateResult(result);
         message.success(`${selectedEoTStrategy}策略推理完成！`);
       }

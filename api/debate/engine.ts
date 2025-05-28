@@ -279,31 +279,83 @@ export class DebateEngine {
     stage1: DebateStage, 
     stage2: DebateStage
   ): string {
-    let allDiscussion = '';
+    // 智能截断策略，控制Token长度
+    const MAX_CONTENT_LENGTH = 1500; // 每个回复最大长度
+    const MAX_TOTAL_LENGTH = 8000; // 总讨论内容最大长度
     
-    allDiscussion += '\n=== 初始观点阶段 ===\n';
-    stage1.responses.forEach((response, index) => {
-      allDiscussion += `\n观点${index + 1}（${response.model}）：\n${response.content}`;
-    });
+    // 截断单个回复内容
+    const truncateContent = (content: string, maxLength: number): string => {
+      if (content.length <= maxLength) return content;
+      
+      // 优先保留前半部分和结尾部分
+      const keepStart = Math.floor(maxLength * 0.6);
+      const keepEnd = Math.floor(maxLength * 0.3);
+      const ellipsis = '\n...[内容已截断]...\n';
+      
+      return content.substring(0, keepStart) + ellipsis + content.substring(content.length - keepEnd);
+    };
 
-    allDiscussion += '\n\n=== 质疑与完善阶段 ===\n';
-    stage2.responses.forEach((response, index) => {
-      allDiscussion += `\n完善观点${index + 1}（${response.model}）：\n${response.content}`;
-    });
+    // 生成关键论点摘要
+    const generateKeyPoints = (responses: any[]): string => {
+      const keyPoints: string[] = [];
+      responses.forEach((response, index) => {
+        const truncated = truncateContent(response.content, MAX_CONTENT_LENGTH);
+        // 提取关键句子（通常是段落开头或包含关键词的句子）
+        const sentences = truncated.split(/[。！？.]/).filter(s => s.trim().length > 10);
+        const keySentences = sentences.slice(0, 3).join('。') + '。';
+        keyPoints.push(`${response.model}: ${keySentences}`);
+      });
+      return keyPoints.join('\n\n');
+    };
+
+    let discussionSummary = '';
+    
+    // 第一阶段关键观点
+    discussionSummary += '=== 初始观点要点 ===\n';
+    discussionSummary += generateKeyPoints(stage1.responses);
+    
+    // 第二阶段关键观点
+    discussionSummary += '\n\n=== 完善观点要点 ===\n';
+    discussionSummary += generateKeyPoints(stage2.responses);
+    
+    // 检查总长度，如果仍然过长则进一步压缩
+    if (discussionSummary.length > MAX_TOTAL_LENGTH) {
+      // 进一步压缩：只保留每个模型的核心观点
+      discussionSummary = '';
+      discussionSummary += '=== 核心观点摘要 ===\n';
+      
+      const allResponses = [...stage1.responses, ...stage2.responses];
+      const modelSummaries = new Map<string, string[]>();
+      
+      allResponses.forEach(response => {
+        if (!modelSummaries.has(response.model)) {
+          modelSummaries.set(response.model, []);
+        }
+        // 只保留每个回复的前200字符
+        const summary = response.content.substring(0, 200).trim();
+        modelSummaries.get(response.model)!.push(summary);
+      });
+      
+      for (const [model, summaries] of modelSummaries) {
+        discussionSummary += `\n${model}观点: ${summaries.join(' → ')}\n`;
+      }
+    }
 
     return `
 现在进入辩论的最终阶段：最终验证与总结。
 
 原始问题：${question}
 
-完整讨论过程：${allDiscussion}
+讨论要点回顾：${discussionSummary}
 
-请基于整个讨论过程：
+请基于以上讨论要点：
 1. 总结你的最终立场和核心观点
 2. 整合讨论中的有价值见解
 3. 指出讨论中达成的共识（如果有）
 4. 承认仍存在分歧的地方
 5. 提供你的最终结论和建议
+
+注意：请聚焦于核心论点，避免重复前面已讨论的细节。
 
 请提供你的最终观点：
     `.trim();

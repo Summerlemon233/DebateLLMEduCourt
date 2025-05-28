@@ -524,7 +524,7 @@ export const startEoTReasoning = async (
           currentProgress = stageProgress;
           
           // 根据策略调整阶段切换逻辑
-          const stageThreshold = getStageThreshold(request.eotStrategy, currentStageIndex);
+          const stageThreshold = 25; // 简化的阶段切换阈值
           if (currentProgress >= stageThreshold) {
             currentStageIndex++;
             console.log(`➡️ [EoT] Moving to stage index: ${currentStageIndex}`);
@@ -570,17 +570,219 @@ export const startEoTReasoning = async (
 };
 
 /**
- * 根据EoT策略获取阶段切换阈值
+ * 使用流式传输的EoT推理函数（支持实时进度反馈）
  */
-function getStageThreshold(strategy: EoTStrategy, stageIndex: number): number {
-  const thresholds: Record<EoTStrategy, number[]> = {
-    'debate': [30, 60, 90],
-    'memory': [35, 70, 90],
-    'report': [25, 65, 90],
-    'relay': [40, 80, 90] // relay通常阶段较少但每阶段更长
-  };
-  
-  return thresholds[strategy]?.[stageIndex] || 30 * (stageIndex + 1);
-}
+export async function startEoTReasoningWithStream(
+  request: EoTRequest,
+  onStageUpdate?: (stage: 'initial' | 'refined' | 'final', progress: number, currentModel?: string, message?: string) => void,
+  onStageComplete?: (stageNumber: number, stageData: any) => void
+): Promise<DebateResult> {
+  console.log('🚀 [EoT-SSE] Starting EoT reasoning with stream feedback');
+  console.log('📋 [EoT-SSE] Request data:', request);
 
-export default api;
+  return new Promise(async (resolve, reject) => {
+    try {
+      // 步骤1：存储请求数据并获取会话ID
+      console.log('📤 [EoT-SSE] Step 1: Storing request data...');
+      const sessionResponse = await api.post('/eot-stream', request);
+      console.log('✅ [EoT-SSE] Session response:', sessionResponse.data);
+      
+      if (!sessionResponse.data.success || !sessionResponse.data.sessionId) {
+        console.error('❌ [EoT-SSE] Failed to create session:', sessionResponse.data);
+        throw new Error('Failed to create EoT session');
+      }
+      
+      const sessionId = sessionResponse.data.sessionId;
+      console.log(`🔐 [EoT-SSE] Session ID obtained: ${sessionId}`);
+      
+      // 步骤2：建立SSE连接
+      console.log('📡 [EoT-SSE] Step 2: Establishing SSE connection...');
+      const eventSourceUrl = `/api/eot-stream?sessionId=${sessionId}`;
+      console.log('🌐 [EoT-SSE] EventSource URL:', eventSourceUrl);
+      
+      const eventSource = new EventSource(eventSourceUrl);
+      console.log('🔗 [EoT-SSE] EventSource created, initial state:', eventSource.readyState);
+      
+      let finalResult: DebateResult | null = null;
+      
+      // 设置超时机制
+      const timeout = setTimeout(() => {
+        console.log('⏰ [EoT-SSE] Operation timeout');
+        eventSource.close();
+        reject(new Error('EoT reasoning timeout'));
+      }, 300000); // 5分钟超时
+      
+      // 监听消息事件
+      eventSource.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 [EoT-SSE] Message received:', data);
+          
+          switch (data.type) {
+            case 'connected':
+              console.log('✅ [EoT-SSE] Connection established');
+              break;
+              
+            case 'stage_start':
+              console.log(`🚀 [EoT-SSE] Stage ${data.stage} (${data.title}) started`);
+              if (onStageUpdate) {
+                const stageMap: { [key: number]: 'initial' | 'refined' | 'final' } = {
+                  1: 'initial',
+                  2: 'refined', 
+                  3: 'final'
+                };
+                const stage = stageMap[data.stage] || 'initial';
+                onStageUpdate(stage, data.progress, undefined, data.message);
+              }
+              break;
+              
+            case 'model_start':
+            case 'model_complete':
+            case 'model_error':
+              console.log(`🤖 [EoT-SSE] Model ${data.model} ${data.type}`);
+              if (onStageUpdate) {
+                const stageMap: { [key: number]: 'initial' | 'refined' | 'final' } = {
+                  1: 'initial',
+                  2: 'refined',
+                  3: 'final'
+                };
+                const stage = stageMap[data.stage] || 'initial';
+                onStageUpdate(stage, data.progress, data.model, data.message);
+              }
+              break;
+              
+            case 'stage_complete':
+              console.log(`✅ [EoT-SSE] Stage ${data.stage} completed`);
+              if (onStageUpdate) {
+                const stageMap: { [key: number]: 'initial' | 'refined' | 'final' } = {
+                  1: 'initial',
+                  2: 'refined',
+                  3: 'final'
+                };
+                const stage = stageMap[data.stage] || 'initial';
+                onStageUpdate(stage, data.progress, undefined, data.message);
+              }
+              break;
+              
+            case 'generating_summary':
+              console.log('📝 [EoT-SSE] Generating summary...');
+              if (onStageUpdate) {
+                onStageUpdate('final', data.progress, undefined, data.message);
+              }
+              break;
+              
+            case 'complete':
+              console.log('🎉 [EoT-SSE] All stages completed!');
+              if (onStageUpdate) {
+                onStageUpdate('final', data.progress, undefined, data.message);
+              }
+              break;
+              
+            default:
+              console.log('ℹ️ [EoT-SSE] Unknown message type:', data.type);
+          }
+        } catch (parseError) {
+          console.error('❌ [EoT-SSE] Error parsing message:', parseError);
+        }
+      });
+      
+      // 监听阶段数据事件
+      eventSource.addEventListener('stage_data', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📊 [EoT-SSE] Stage data received:', data);
+          
+          if (onStageComplete && data.stage && data.data) {
+            console.log(`🔄 [EoT-SSE] Calling onStageComplete for stage ${data.stage}`);
+            onStageComplete(data.stage, data.data);
+          }
+        } catch (parseError) {
+          console.error('❌ [EoT-SSE] Error parsing stage data:', parseError);
+        }
+      });
+      
+      // 监听最终结果事件
+      eventSource.addEventListener('final_result', (event) => {
+        try {
+          const result = JSON.parse(event.data);
+          console.log('🎯 [EoT-SSE] Final result received:', result);
+          finalResult = result;
+        } catch (parseError) {
+          console.error('❌ [EoT-SSE] Error parsing final result:', parseError);
+        }
+      });
+      
+      // 监听错误事件
+      eventSource.addEventListener('error_event', (event) => {
+        try {
+          const errorData = JSON.parse(event.data);
+          console.error('❌ [EoT-SSE] Error event received:', errorData);
+          eventSource.close();
+          reject(new Error(errorData.error || 'EoT reasoning failed'));
+        } catch (parseError) {
+          console.error('❌ [EoT-SSE] Error parsing error event:', parseError);
+          eventSource.close();
+          reject(new Error('Unknown error during EoT reasoning'));
+        }
+      });
+      
+      // 监听连接关闭
+      eventSource.onopen = () => {
+        console.log('🟢 [EoT-SSE] Connection opened, readyState:', eventSource.readyState);
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error('❌ [EoT-SSE] Connection error:', error);
+        console.log('🔍 [EoT-SSE] EventSource readyState:', eventSource.readyState);
+        
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log('🔒 [EoT-SSE] Connection closed');
+          eventSource.close();
+          
+          if (finalResult) {
+            console.log('✅ [EoT-SSE] Resolving with final result');
+            resolve(finalResult);
+          } else {
+            console.log('❌ [EoT-SSE] No final result received');
+            reject(new Error('EoT reasoning completed but no result received'));
+          }
+        }
+      };
+      
+      // 清理函数
+      const cleanup = () => {
+        clearTimeout(timeout);
+        if (eventSource.readyState !== EventSource.CLOSED) {
+          eventSource.close();
+        }
+      };
+      
+      // 监听连接关闭 - 重新定义，避免变量重新赋值问题
+      eventSource.onopen = () => {
+        console.log('🟢 [EoT-SSE] Connection opened, readyState:', eventSource.readyState);
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error('❌ [EoT-SSE] Connection error:', error);
+        console.log('🔍 [EoT-SSE] EventSource readyState:', eventSource.readyState);
+        
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log('🔒 [EoT-SSE] Connection closed');
+          cleanup();
+          
+          if (finalResult) {
+            console.log('✅ [EoT-SSE] Resolving with final result');
+            resolve(finalResult);
+          } else {
+            console.log('❌ [EoT-SSE] No final result received');
+            reject(new Error('EoT reasoning completed but no result received'));
+          }
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ [EoT-SSE] Setup error:', error);
+      reject(error);
+    }
+  });
+}
