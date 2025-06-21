@@ -13,7 +13,7 @@ import ParticleBackground from '../src/components/ParticleBackground';
 import AppHeader from '../src/components/Header';
 import AccessibilityToolbar from '../src/components/AccessibilityToolbar';
 
-import QuestionInput from '../src/components/QuestionInput';
+import QuestionInput from '../src/components/QuestionInput_new';
 import ModelSelector from '../src/components/ModelSelector';
 import TeacherSelector from '../src/components/TeacherSelector';
 import EoTSelector from '../src/components/EoTSelector';
