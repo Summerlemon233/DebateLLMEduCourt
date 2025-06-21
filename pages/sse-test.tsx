@@ -122,7 +122,7 @@ const SSETestPage: React.FC = () => {
       }}>
         <h3>调试日志</h3>
         {logs.length === 0 ? (
-          <p style={{ color: '#6c757d' }}>点击"开始SSE测试"查看调试日志...</p>
+          <p style={{ color: '#6c757d' }}>点击&quot;开始SSE测试&quot;查看调试日志...</p>
         ) : (
           logs.map((log, index) => (
             <div key={index} style={{ 

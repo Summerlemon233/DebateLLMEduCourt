@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { 
   Modal, 
   Tabs, 
@@ -18,7 +21,8 @@ import {
   Avatar,
   Badge,
   Statistic,
-  Empty
+  Empty,
+  Switch
 } from 'antd';
 import { 
   BookOutlined,
@@ -37,6 +41,7 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import { LearningResult, AgentOutput } from '../types';
+import styles from '../styles/markdown.module.css';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -59,9 +64,6 @@ export const LearningResultDetail: React.FC<LearningResultDetailProps> = ({
   result,
   sessionMetadata
 }) => {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [downloadLoading, setDownloadLoading] = useState(false);
-
   // 计算学习质量分数
   const calculateQualityScore = (): number => {
     if (!result.agentContributions || result.agentContributions.length === 0) {
@@ -74,6 +76,11 @@ export const LearningResultDetail: React.FC<LearningResultDetailProps> = ({
     
     return Math.round(avgConfidence * 100);
   };
+
+  // 状态管理
+  const [activeTab, setActiveTab] = useState('overview');
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [markdownMode, setMarkdownMode] = useState(false);
 
   // 获取难度标签颜色
   const getDifficultyColor = (difficulty: number): string => {
@@ -173,6 +180,53 @@ ${contribution.suggestions.map(s => `- ${s}`).join('\n')}
 
   const qualityScore = calculateQualityScore();
 
+  // Markdown渲染器组件
+  const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => (
+    <div className={styles.markdownContent}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          h1: ({ children }) => <Title level={2}>{children}</Title>,
+          h2: ({ children }) => <Title level={3}>{children}</Title>,
+          h3: ({ children }) => <Title level={4}>{children}</Title>,
+          h4: ({ children }) => <Title level={5}>{children}</Title>,
+          p: ({ children }) => <Paragraph>{children}</Paragraph>,
+          ul: ({ children }) => <List size="small">{children}</List>,
+          li: ({ children }) => (
+            <List.Item>
+              <Text>{children}</Text>
+            </List.Item>
+          ),
+          code: ({ children, className }) => {
+            const match = /language-(\w+)/.exec(className || '');
+            return match ? (
+              <pre style={{ 
+                background: '#f6f8fa', 
+                padding: '12px', 
+                borderRadius: '6px',
+                overflow: 'auto'
+              }}>
+                <code className={className}>{children}</code>
+              </pre>
+            ) : (
+              <code style={{ 
+                background: '#f6f8fa', 
+                padding: '2px 4px', 
+                borderRadius: '3px',
+                fontSize: '0.9em'
+              }}>
+                {children}
+              </code>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+
   return (
     <Modal
       title={
@@ -270,10 +324,25 @@ ${contribution.suggestions.map(s => `- ${s}`).join('\n')}
                 <Divider />
 
                 <div>
-                  <Text strong>详细内容:</Text>
-                  <Paragraph style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>
-                    {result.content}
-                  </Paragraph>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Text strong>详细内容:</Text>
+                    <Space>
+                      <Text style={{ fontSize: 12 }}>Markdown渲染:</Text>
+                      <Switch 
+                        size="small"
+                        checked={markdownMode}
+                        onChange={setMarkdownMode}
+                      />
+                    </Space>
+                  </div>
+                  
+                  {markdownMode ? (
+                    <MarkdownRenderer content={result.content} />
+                  ) : (
+                    <Paragraph style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                      {result.content}
+                    </Paragraph>
+                  )}
                 </div>
               </Card>
             </Col>
@@ -442,12 +511,18 @@ ${contribution.suggestions.map(s => `- ${s}`).join('\n')}
 
                   <div style={{ marginBottom: 12 }}>
                     <Text strong>贡献内容:</Text>
-                    <Paragraph 
-                      style={{ marginTop: 8 }}
-                      ellipsis={{ rows: 4, expandable: true }}
-                    >
-                      {contribution.content}
-                    </Paragraph>
+                    {markdownMode ? (
+                      <div style={{ marginTop: 8 }}>
+                        <MarkdownRenderer content={contribution.content} />
+                      </div>
+                    ) : (
+                      <Paragraph 
+                        style={{ marginTop: 8 }}
+                        ellipsis={{ rows: 4, expandable: true }}
+                      >
+                        {contribution.content}
+                      </Paragraph>
+                    )}
                   </div>
 
                   {contribution.suggestions && contribution.suggestions.length > 0 && (

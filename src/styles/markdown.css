@@ -1,0 +1,232 @@
+/* Markdown 渲染样式 */
+.markdown-content {
+  line-height: 1.6;
+  color: #333;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-content h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 10px;
+}
+
+.markdown-content h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 8px;
+}
+
+.markdown-content h3 {
+  font-size: 1.25em;
+}
+
+.markdown-content h4 {
+  font-size: 1em;
+}
+
+.markdown-content h5 {
+  font-size: 0.875em;
+}
+
+.markdown-content h6 {
+  font-size: 0.85em;
+  color: #6a737d;
+}
+
+.markdown-content p {
+  margin-bottom: 16px;
+}
+
+.markdown-content blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+  margin: 0 0 16px 0;
+  background-color: #f6f8fa;
+}
+
+.markdown-content blockquote p {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 2em;
+  margin-bottom: 16px;
+}
+
+.markdown-content li {
+  margin-bottom: 4px;
+}
+
+.markdown-content li > p {
+  margin-bottom: 8px;
+}
+
+.markdown-content pre {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  font-size: 85%;
+  line-height: 1.45;
+  overflow: auto;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.markdown-content code {
+  background-color: rgba(27,31,35,0.05);
+  border-radius: 3px;
+  font-size: 85%;
+  margin: 0;
+  padding: 0.2em 0.4em;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  border: 0;
+  font-size: 100%;
+  max-width: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  border: 1px solid #dfe2e5;
+  padding: 6px 13px;
+}
+
+.markdown-content table th {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+.markdown-content table tr:nth-child(even) {
+  background-color: #f6f8fa;
+}
+
+.markdown-content hr {
+  border: 0;
+  border-top: 1px solid #eaecef;
+  height: 0.25em;
+  margin: 24px 0;
+  padding: 0;
+  background-color: #eaecef;
+}
+
+/* 任务列表样式 */
+.markdown-content .task-list-item {
+  list-style-type: none;
+  margin-left: -1.5em;
+}
+
+.markdown-content .task-list-item-checkbox {
+  margin-right: 0.5em;
+}
+
+/* 代码语言标签 */
+.markdown-content pre::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #f1f3f4;
+  color: #5f6368;
+  font-size: 0.75em;
+  padding: 4px 8px;
+  border-radius: 0 6px 0 6px;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .markdown-content {
+    font-size: 14px;
+  }
+  
+  .markdown-content pre {
+    padding: 12px;
+    font-size: 12px;
+  }
+  
+  .markdown-content h1 {
+    font-size: 1.75em;
+  }
+  
+  .markdown-content h2 {
+    font-size: 1.5em;
+  }
+  
+  .markdown-content h3 {
+    font-size: 1.25em;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .markdown-content {
+    color: #c9d1d9;
+  }
+  
+  .markdown-content h1,
+  .markdown-content h2 {
+    border-bottom-color: #30363d;
+  }
+  
+  .markdown-content h6 {
+    color: #8b949e;
+  }
+  
+  .markdown-content blockquote {
+    color: #8b949e;
+    border-left-color: #30363d;
+    background-color: #0d1117;
+  }
+  
+  .markdown-content pre {
+    background-color: #161b22;
+  }
+  
+  .markdown-content code {
+    background-color: rgba(110,118,129,0.4);
+  }
+  
+  .markdown-content table th,
+  .markdown-content table td {
+    border-color: #30363d;
+  }
+  
+  .markdown-content table th {
+    background-color: #161b22;
+  }
+  
+  .markdown-content table tr:nth-child(even) {
+    background-color: #0d1117;
+  }
+  
+  .markdown-content hr {
+    border-top-color: #30363d;
+    background-color: #30363d;
+  }
+}

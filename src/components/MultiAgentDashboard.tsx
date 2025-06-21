@@ -189,6 +189,11 @@ export const MultiAgentDashboard: React.FC<MultiAgentDashboardProps> = ({
         await recordLearningSession(sessionId, learningTopic);
         
         message.success('学习会话完成！');
+        
+        // 自动弹出学习成果详情窗口
+        setTimeout(() => {
+          setResultDetailVisible(true);
+        }, 1000); // 延迟1秒让用户看到完成消息
       } else {
         throw new Error('学习会话启动失败');
       }

@@ -4,6 +4,7 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import '../src/styles/globals.css';
 import '../src/styles/print.css';
+import 'highlight.js/styles/github.css'; // 代码高亮样式
 
 // Ant Design 主题配置
 const theme = {

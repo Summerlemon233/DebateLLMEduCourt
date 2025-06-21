@@ -63,7 +63,7 @@ const TeacherDetailModal: React.FC<TeacherDetailModalProps> = ({
       <div style={{ padding: '16px 0' }}>
         {/* 名言 */}
         <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}>
-          <Text italic>"{teacher.catchphrase}"</Text>
+          <Text italic>&quot;{teacher.catchphrase}&quot;</Text>
         </Card>
 
         {/* 教学风格 */}

@@ -228,7 +228,7 @@ export const LearningRecommendationPanel: React.FC<LearningRecommendationPanelPr
                     size="small"
                     hoverable
                     actions={[
-                      <Tooltip title="开始学习">
+                      <Tooltip key="start" title="开始学习">
                         <Button 
                           type="primary" 
                           icon={<PlayCircleOutlined />}
@@ -237,10 +237,10 @@ export const LearningRecommendationPanel: React.FC<LearningRecommendationPanelPr
                           开始
                         </Button>
                       </Tooltip>,
-                      <Tooltip title="喜欢">
+                      <Tooltip key="like" title="喜欢">
                         <LikeOutlined />
                       </Tooltip>,
-                      <Tooltip title="分享">
+                      <Tooltip key="share" title="分享">
                         <ShareAltOutlined />
                       </Tooltip>
                     ]}
