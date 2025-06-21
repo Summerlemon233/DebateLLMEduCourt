@@ -1299,3 +1299,117 @@ html {
     margin-bottom: 10px;
   }
 }
+
+/* 教师选择器样式 */
+.teacher-selector-section {
+  margin-bottom: 2rem;
+}
+
+.teacher-selector .ant-card {
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  border: 1px solid var(--bg-tertiary);
+}
+
+.teacher-selector .ant-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.teacher-selector .ant-card-head {
+  background: linear-gradient(135deg, var(--accent-color), var(--bg-secondary));
+  border-bottom: 1px solid var(--bg-tertiary);
+  border-radius: 12px 12px 0 0;
+}
+
+.teacher-selector .ant-select {
+  border-radius: 8px;
+}
+
+.teacher-selector .ant-select-selector {
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.teacher-selector .ant-select-focused .ant-select-selector {
+  box-shadow: var(--shadow-md);
+}
+
+.teacher-assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.teacher-persona-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+/* 教师详情模态框样式 */
+.teacher-detail-modal .ant-modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.teacher-detail-modal .ant-modal-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  border-radius: 16px 16px 0 0;
+}
+
+.teacher-detail-modal .ant-modal-title {
+  color: white;
+}
+
+.teacher-persona-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.teacher-persona-quote {
+  background: rgba(85, 182, 199, 0.1);
+  border-left: 4px solid var(--primary-color);
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 8px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.teacher-specialty-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.teacher-personality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .teacher-assignment-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .teacher-selector-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .teacher-specialty-grid,
+  .teacher-personality-grid {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  }
+}

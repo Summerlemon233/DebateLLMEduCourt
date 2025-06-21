@@ -12,6 +12,7 @@ export interface DebateRequest {
   models: string[]; // 修改为与后端匹配
   config?: ModelConfig;
   eotStrategy?: EoTStrategy; // 添加EoT策略选项
+  teacherPersonas?: { [modelId: string]: string }; // 添加教师人格化支持
 }
 
 export interface LLMResponse {
@@ -138,4 +139,13 @@ export interface EoTStrategyConfig {
   description: string;
   stages: number;
   communicationPattern: string;
+}
+
+// 教师人格化系统类型定义
+export interface TeacherPersonaConfig {
+  [modelId: string]: string; // modelId -> teacherPersonaId
+}
+
+export interface EnhancedDebateRequest extends DebateRequest {
+  teacherPersonas?: TeacherPersonaConfig;
 }

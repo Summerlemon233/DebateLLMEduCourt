@@ -40,7 +40,7 @@ export default async function handler(
 
   try {
     // 验证请求体
-    const { question, models, config }: DebateRequest = req.body;
+    const { question, models, config, teacherPersonas }: DebateRequest = req.body;
 
     if (!question || !models) {
       res.status(400).json({
@@ -51,6 +51,8 @@ export default async function handler(
       return;
     }
 
+    console.log('Received teacherPersonas:', teacherPersonas); // 调试日志
+
     // 创建辩论引擎
     const factory = getLLMFactory();
     const debateEngine = new DebateEngine(factory);
@@ -59,7 +61,8 @@ export default async function handler(
     const result = await debateEngine.runDebate({
       question,
       models,
-      config
+      config,
+      teacherPersonas // 传递教师人格化数据
     });
 
     // 返回结果

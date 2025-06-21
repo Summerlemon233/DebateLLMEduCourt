@@ -5,10 +5,12 @@ import { RobotOutlined, BulbOutlined } from '@ant-design/icons';
 
 import QuestionInput from '@/components/QuestionInput';
 import ModelSelector from '@/components/ModelSelector';
+import TeacherSelector from '@/components/TeacherSelector';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import ResultDisplay from '@/components/ResultDisplay';
 
 import { startDebate } from '@/utils/api';
+import { TeacherSelectionState } from '@/utils/teacherPersonas';
 import type { 
   DebateResult, 
   LoadingState, 
@@ -70,6 +72,7 @@ const DEFAULT_MODELS: ModelConfig[] = [
 export default function HomePage() {
   // 状态管理
   const [selectedModels, setSelectedModels] = useState<string[]>(['deepseek', 'qwen', 'hunyuan']);
+  const [teacherSelection, setTeacherSelection] = useState<TeacherSelectionState>({});
   const [debateResult, setDebateResult] = useState<DebateResult | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>({
     isLoading: false,
@@ -103,6 +106,7 @@ export default function HomePage() {
       const request: DebateRequest = {
         question: question.trim(),
         models: selectedModels,
+        teacherPersonas: teacherSelection, // 添加教师人格化信息
       };
 
       // 模拟进度更新
@@ -149,6 +153,11 @@ export default function HomePage() {
     setSelectedModels(models);
   };
 
+  // 处理教师选择变化
+  const handleTeacherSelectionChange = (selection: TeacherSelectionState) => {
+    setTeacherSelection(selection);
+  };
+
   return (
     <>
       <Head>
@@ -192,6 +201,16 @@ export default function HomePage() {
                 models={DEFAULT_MODELS}
                 selectedModels={selectedModels}
                 onModelChange={handleModelChange}
+                disabled={loadingState.isLoading}
+              />
+            </div>
+
+            {/* 教师选择区域 */}
+            <div className="teacher-selector-section">
+              <TeacherSelector 
+                models={DEFAULT_MODELS}
+                selectedModels={selectedModels}
+                onTeacherSelectionChange={handleTeacherSelectionChange}
                 disabled={loadingState.isLoading}
               />
             </div>

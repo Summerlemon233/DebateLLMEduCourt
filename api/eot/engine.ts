@@ -1,12 +1,14 @@
 import { LLMFactory, LLMProvider } from '../llm/factory';
 import { DebateStage, DebateResult, ModelConfig, EoTStrategy } from '../../src/types';
 import { DebateError } from '../utils/error-handler';
+import { applyTeacherPersona, getTeacherPersonaById } from '../../src/utils/teacherPersonas';
 
 export interface EoTRequest {
   question: string;
   models: string[];
   config?: ModelConfig;
   eotStrategy: EoTStrategy;
+  teacherPersonas?: { [modelId: string]: string }; // 添加教师人格化支持
 }
 
 export interface EoTResponse {
@@ -28,6 +30,23 @@ export class EoTEngine {
 
   constructor(llmFactory: LLMFactory) {
     this.llmFactory = llmFactory;
+  }
+
+  /**
+   * 应用教师人格化到prompt的辅助方法
+   */
+  private applyTeacherPersonaIfNeeded(
+    prompt: string,
+    modelId: string,
+    request: EoTRequest
+  ): string {
+    if (request.teacherPersonas && request.teacherPersonas[modelId]) {
+      const teacherPersonaId = request.teacherPersonas[modelId];
+      const personalizedPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+      console.log(`Applied teacher persona ${teacherPersonaId} for model ${modelId}`);
+      return personalizedPrompt;
+    }
+    return prompt;
   }
 
   async runEoT(request: EoTRequest): Promise<EoTResponse> {
@@ -231,6 +250,15 @@ export class EoTEngine {
     stage.responses = await Promise.all(responsePromises);
     stage.endTime = new Date().toISOString();
     stage.duration = Date.now() - startTime;
+
+    // 应用教师人格化（如果有）
+    for (const model of request.models) {
+      const modelResponses = stage.responses.filter(response => response.model === model);
+      for (let i = 0; i < modelResponses.length; i++) {
+        const response = modelResponses[i];
+        response.content = this.applyTeacherPersonaIfNeeded(response.content, model, request);
+      }
+    }
 
     return stage;
   }

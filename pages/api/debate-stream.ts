@@ -1,10 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { DebateEngine } from '../../api/debate/engine';
 import { LLMFactory } from '../../api/llm/factory';
+import { applyTeacherPersona } from '../../src/utils/teacherPersonas';
 
 interface DebateRequest {
   question: string;
   models: string[];
+  teacherPersonas?: { [modelId: string]: string }; // 添加教师人格化支持
 }
 
 interface SessionData {
@@ -45,7 +47,8 @@ async function runStage1WithProgress(
   factory: LLMFactory, 
   question: string, 
   models: string[], 
-  sendSSE: Function
+  sendSSE: Function,
+  teacherPersonas?: { [modelId: string]: string }
 ) {
   const stage: any = {
     stage: 1,
@@ -76,7 +79,16 @@ async function runStage1WithProgress(
 
     try {
       const client = factory.getClient(model as any);
-      const response = await client.generateResponse(prompt);
+      
+      // 应用教师人格化修饰符
+      let finalPrompt = prompt;
+      if (teacherPersonas && teacherPersonas[model]) {
+        const teacherPersonaId = teacherPersonas[model];
+        finalPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+        console.log(`Applied teacher persona ${teacherPersonaId} for model ${model} in stage 1`);
+      }
+      
+      const response = await client.generateResponse(finalPrompt);
       
       stage.responses.push(response);
       currentProgress += progressStep;
@@ -121,7 +133,8 @@ async function runStage2WithProgress(
   question: string, 
   models: string[], 
   stage1: any,
-  sendSSE: Function
+  sendSSE: Function,
+  teacherPersonas?: { [modelId: string]: string }
 ) {
   const stage: any = {
     stage: 2,
@@ -152,7 +165,16 @@ async function runStage2WithProgress(
 
     try {
       const client = factory.getClient(model as any);
-      const response = await client.generateResponse(prompt);
+      
+      // 应用教师人格化修饰符
+      let finalPrompt = prompt;
+      if (teacherPersonas && teacherPersonas[model]) {
+        const teacherPersonaId = teacherPersonas[model];
+        finalPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+        console.log(`Applied teacher persona ${teacherPersonaId} for model ${model} in stage 2`);
+      }
+      
+      const response = await client.generateResponse(finalPrompt);
       
       stage.responses.push(response);
       currentProgress += progressStep;
@@ -198,7 +220,8 @@ async function runStage3WithProgress(
   models: string[], 
   stage1: any,
   stage2: any,
-  sendSSE: Function
+  sendSSE: Function,
+  teacherPersonas?: { [modelId: string]: string }
 ) {
   const stage: any = {
     stage: 3,
@@ -229,7 +252,16 @@ async function runStage3WithProgress(
 
     try {
       const client = factory.getClient(model as any);
-      const response = await client.generateResponse(prompt);
+      
+      // 应用教师人格化修饰符
+      let finalPrompt = prompt;
+      if (teacherPersonas && teacherPersonas[model]) {
+        const teacherPersonaId = teacherPersonas[model];
+        finalPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+        console.log(`Applied teacher persona ${teacherPersonaId} for model ${model} in stage 3`);
+      }
+      
+      const response = await client.generateResponse(finalPrompt);
       
       stage.responses.push(response);
       currentProgress += progressStep;
@@ -392,7 +424,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     try {
-      const { question, models } = req.body as DebateRequest;
+      const { question, models, teacherPersonas } = req.body as DebateRequest;
       
       if (!question || !models || models.length === 0) {
         return res.status(400).json({ 
@@ -400,12 +432,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
+      console.log('📡 [SSE-Backend] Received teacherPersonas:', teacherPersonas); // 调试日志
+
       // 生成会话ID
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // 存储请求数据
       sessions.set(sessionId, {
-        request: { question, models },
+        request: { question, models, teacherPersonas }, // 保存教师人格化数据
         timestamp: Date.now()
       });
 
@@ -452,7 +486,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sendSSE('message', { type: 'connected', message: 'SSE connection established' });
 
       const factory = getLLMFactory();
-      const { question, models } = sessionData.request;
+      const { question, models, teacherPersonas } = sessionData.request;
+
+      console.log('📡 [SSE-Backend] Processing with teacherPersonas:', teacherPersonas); // 调试日志
 
       // 创建辩论结果对象
       const result: any = {
@@ -469,7 +505,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // 阶段1：初始观点 (0-35%)
       sendSSE('message', { type: 'stage_start', stage: 1, progress: 0, message: '🎯 阶段1：收集各模型初始观点' });
       
-      const stage1 = await runStage1WithProgress(factory, question, models, sendSSE);
+      const stage1 = await runStage1WithProgress(factory, question, models, sendSSE, teacherPersonas);
       result.stages.push(stage1);
       
       sendSSE('message', { 
@@ -483,7 +519,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // 阶段2：交叉质疑与完善 (35-70%)
       sendSSE('message', { type: 'stage_start', stage: 2, progress: 35, message: '🔄 阶段2：观点交互与完善' });
       
-      const stage2 = await runStage2WithProgress(factory, question, models, stage1, sendSSE);
+      const stage2 = await runStage2WithProgress(factory, question, models, stage1, sendSSE, teacherPersonas);
       result.stages.push(stage2);
       
       sendSSE('message', { 
@@ -497,7 +533,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // 阶段3：最终验证 (70-100%)
       sendSSE('message', { type: 'stage_start', stage: 3, progress: 70, message: '🎊 阶段3：最终验证与总结' });
       
-      const stage3 = await runStage3WithProgress(factory, question, models, stage1, stage2, sendSSE);
+      const stage3 = await runStage3WithProgress(factory, question, models, stage1, stage2, sendSSE, teacherPersonas);
       result.stages.push(stage3);
       
       sendSSE('message', { 

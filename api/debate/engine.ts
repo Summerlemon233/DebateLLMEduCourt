@@ -1,11 +1,13 @@
 import { LLMFactory, LLMProvider } from '../llm/factory';
 import { DebateStage, DebateResult, ModelConfig } from '../../src/types';
 import { DebateError } from '../utils/error-handler';
+import { applyTeacherPersona, getTeacherPersonaById } from '../../src/utils/teacherPersonas';
 
 export interface DebateRequest {
   question: string;
   models: string[];
   config?: ModelConfig;
+  teacherPersonas?: { [modelId: string]: string }; // 添加教师人格化支持
 }
 
 export interface DebateResponse {
@@ -125,7 +127,16 @@ export class DebateEngine {
     const responsePromises = request.models.map(async (model) => {
       try {
         const client = this.llmFactory.getClient(model as any);
-        const response = await client.generateResponse(prompt, request.config);
+        
+        // 应用教师人格化修饰符
+        let finalPrompt = prompt;
+        if (request.teacherPersonas && request.teacherPersonas[model]) {
+          const teacherPersonaId = request.teacherPersonas[model];
+          finalPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+          console.log(`Applied teacher persona ${teacherPersonaId} for model ${model}`);
+        }
+        
+        const response = await client.generateResponse(finalPrompt, request.config);
         return response;
       } catch (error) {
         console.error(`Model ${model} failed in stage 1:`, error);
@@ -167,7 +178,16 @@ export class DebateEngine {
     const responsePromises = request.models.map(async (model) => {
       try {
         const client = this.llmFactory.getClient(model as any);
-        const response = await client.generateResponse(prompt, request.config);
+        
+        // 应用教师人格化修饰符
+        let finalPrompt = prompt;
+        if (request.teacherPersonas && request.teacherPersonas[model]) {
+          const teacherPersonaId = request.teacherPersonas[model];
+          finalPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+          console.log(`Applied teacher persona ${teacherPersonaId} for model ${model} in stage 2`);
+        }
+        
+        const response = await client.generateResponse(finalPrompt, request.config);
         return response;
       } catch (error) {
         console.error(`Model ${model} failed in stage 2:`, error);
@@ -212,7 +232,16 @@ export class DebateEngine {
     const responsePromises = request.models.map(async (model) => {
       try {
         const client = this.llmFactory.getClient(model as any);
-        const response = await client.generateResponse(prompt, request.config);
+        
+        // 应用教师人格化修饰符
+        let finalPrompt = prompt;
+        if (request.teacherPersonas && request.teacherPersonas[model]) {
+          const teacherPersonaId = request.teacherPersonas[model];
+          finalPrompt = applyTeacherPersona(prompt, teacherPersonaId);
+          console.log(`Applied teacher persona ${teacherPersonaId} for model ${model} in stage 3`);
+        }
+        
+        const response = await client.generateResponse(finalPrompt, request.config);
         return response;
       } catch (error) {
         console.error(`Model ${model} failed in stage 3:`, error);

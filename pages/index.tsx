@@ -15,11 +15,13 @@ import AccessibilityToolbar from '../src/components/AccessibilityToolbar';
 
 import QuestionInput from '../src/components/QuestionInput';
 import ModelSelector from '../src/components/ModelSelector';
+import TeacherSelector from '../src/components/TeacherSelector';
 import EoTSelector from '../src/components/EoTSelector';
 import LoadingIndicator from '../src/components/LoadingIndicator';
 import ResultDisplay from '../src/components/ResultDisplay';
 
 import { startDebate, startEoTReasoning, startEoTReasoningWithStream } from '../src/utils/api';
+import { TeacherSelectionState } from '../src/utils/teacherPersonas';
 import type { 
   DebateResult, 
   LoadingState, 
@@ -84,6 +86,7 @@ export default function HomePage() {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('default');
   const [selectedModels, setSelectedModels] = useState<string[]>(['deepseek', 'qwen', 'hunyuan']);
+  const [teacherSelection, setTeacherSelection] = useState<TeacherSelectionState>({});
   const [selectedEoTStrategy, setSelectedEoTStrategy] = useState<EoTStrategy>('debate');
   const [debateResult, setDebateResult] = useState<DebateResult | null>(null);
   const [partialResult, setPartialResult] = useState<DebateResult | null>(null);
@@ -269,6 +272,7 @@ export default function HomePage() {
         const request: DebateRequest = {
           question: question.trim(),
           models: selectedModels,
+          teacherPersonas: teacherSelection, // 添加教师人格化信息
         };
 
         const result = await startDebate(request, handleStageUpdate, handleStageComplete);
@@ -280,6 +284,7 @@ export default function HomePage() {
           question: question.trim(),
           models: selectedModels,
           eotStrategy: selectedEoTStrategy,
+          teacherPersonas: teacherSelection, // 添加教师人格化信息
         };
 
         const result = await startEoTReasoningWithStream(eotRequest, handleStageUpdate, handleStageComplete);
@@ -313,6 +318,11 @@ export default function HomePage() {
   // 处理模型选择变化
   const handleModelChange = (models: string[]) => {
     setSelectedModels(models);
+  };
+
+  // 处理教师选择变化
+  const handleTeacherSelectionChange = (selection: TeacherSelectionState) => {
+    setTeacherSelection(selection);
   };
 
   // 处理EoT策略选择变化
@@ -559,6 +569,21 @@ export default function HomePage() {
                 models={DEFAULT_MODELS}
                 selectedModels={selectedModels}
                 onModelChange={handleModelChange}
+                disabled={loadingState.isLoading}
+              />
+            </motion.div>
+
+            {/* 教师选择区域 */}
+            <motion.div 
+              className="teacher-selector-section"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 30 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <TeacherSelector 
+                models={DEFAULT_MODELS}
+                selectedModels={selectedModels}
+                onTeacherSelectionChange={handleTeacherSelectionChange}
                 disabled={loadingState.isLoading}
               />
             </motion.div>

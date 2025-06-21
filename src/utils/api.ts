@@ -1,6 +1,7 @@
 // 前端API调用工具函数
 import axios, { AxiosResponse } from 'axios';
-import { DebateRequest, DebateApiResponse, DebateResult, EoTStrategy } from '@/types';
+import { DebateRequest, DebateApiResponse, DebateResult, EoTStrategy, TeacherPersonaConfig } from '@/types';
+import { TeacherSelectionState } from '@/utils/teacherPersonas';
 
 // EoT请求接口
 export interface EoTRequest {
@@ -8,6 +9,7 @@ export interface EoTRequest {
   models: string[];
   config?: any;
   eotStrategy: EoTStrategy;
+  teacherPersonas?: TeacherSelectionState; // 添加教师人格化支持
 }
 
 // EoT响应接口
