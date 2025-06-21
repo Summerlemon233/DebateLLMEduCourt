@@ -1,25 +1,37 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
-import { Layout, message, Tooltip } from 'antd';
+import { Layout, message, Tooltip, Tabs } from 'antd';
+
+const { TabPane } = Tabs;
 import { motion } from 'framer-motion';
 import { 
   RobotOutlined, 
   BulbOutlined, 
   QuestionCircleOutlined, 
-  ApiOutlined
+  ApiOutlined,
+  ExperimentOutlined,
+  UserOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 
 import ParticleBackground from '../src/components/ParticleBackground';
 import AppHeader from '../src/components/Header';
 import AccessibilityToolbar from '../src/components/AccessibilityToolbar';
 
-import QuestionInput from '../src/components/QuestionInput_new';
+import QuestionInput from '../src/components/QuestionInput';
 import ModelSelector from '../src/components/ModelSelector';
 import TeacherSelector from '../src/components/TeacherSelector';
 import EoTSelector from '../src/components/EoTSelector';
 import LoadingIndicator from '../src/components/LoadingIndicator';
 import ResultDisplay from '../src/components/ResultDisplay';
 import GamificationPanel from '../src/components/GamificationPanel';
+
+// 新增多智能体教育组件
+import MultiAgentDashboard from '../src/components/MultiAgentDashboard';
+import AgentCollaborationView from '../src/components/AgentCollaborationView';
+import LearnerProfileManager from '../src/components/LearnerProfileManager';
+import LearningRecommendationPanel from '../src/components/LearningRecommendationPanel';
+import LearningProgressTracker from '../src/components/LearningProgressTracker';
 
 import { startDebate, startEoTReasoning, startEoTReasoningWithStream } from '../src/utils/api';
 import { TeacherSelectionState } from '../src/utils/teacherPersonas';
@@ -100,6 +112,12 @@ export default function HomePage() {
     progress: 0,
   });
   const [eotStrategy, setEoTStrategy] = useState<EoTStrategy | null>(null);
+  
+  // 多智能体教育系统状态
+  const [activeTab, setActiveTab] = useState('debate');
+  const [userId] = useState('user_123'); // 实际应用中应该从登录系统获取
+  const [learnerProfile, setLearnerProfile] = useState<any>(null);
+  const [availableAgents, setAvailableAgents] = useState<any[]>([]);
   
   // 处理游戏化事件
   const handleGamificationEvent = (event: GamificationEvent) => {
@@ -409,6 +427,33 @@ export default function HomePage() {
     setEoTStrategy(strategy);
   };
 
+  // 加载学习者画像和智能体
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        // 加载学习者画像
+        const profileResponse = await fetch(`/api/learner-profile/${userId}`);
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          setLearnerProfile(profileData.profile);
+        }
+
+        // 加载可用智能体
+        const agentsResponse = await fetch('/api/agents');
+        if (agentsResponse.ok) {
+          const agentsData = await agentsResponse.json();
+          setAvailableAgents(agentsData.agents || []);
+        }
+      } catch (error) {
+        console.error('加载用户数据失败:', error);
+      }
+    };
+
+    if (userId) {
+      loadUserData();
+    }
+  }, [userId]);
+
   return (
     <>
       <Head>
@@ -612,106 +657,209 @@ export default function HomePage() {
               </div>
             </motion.div>
             
-            {/* 问题输入区域 */}
+            {/* 新增多智能体教育相关组件 */}
             <motion.div 
-              className="question-section"
+              className="multi-agent-education-section"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 30 }}
-              transition={{ duration: 0.6, delay: 1.0 }}
+              transition={{ duration: 0.6, delay: 1.6 }}
             >
-              <h2>
-                <span><QuestionCircleOutlined /></span>
-                提出您的问题
-              </h2>
-              <QuestionInput
-                onSubmit={handleQuestionSubmit}
-                isLoading={loadingState.isLoading}
-                placeholder="请输入您想要探讨的问题，例如：人工智能对教育的影响是什么？"
-              />
-            </motion.div>
-
-            {/* 模型选择区域 */}
-            <motion.div 
-              className="model-selector-section"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 30 }}
-              transition={{ duration: 0.6, delay: 1.2 }}
-            >
-              <h3>
-                <span><ApiOutlined /></span>
-                选择参与辩论的AI模型
-              </h3>
-              <p className="model-info-text">
-                至少选择2个模型进行辩论，让不同AI视角帮助分析问题，获取更客观的结论
-              </p>
-              <ModelSelector
-                models={DEFAULT_MODELS}
-                selectedModels={selectedModels}
-                onModelChange={handleModelChange}
-                disabled={loadingState.isLoading}
-              />
-            </motion.div>
-
-            {/* 教师选择区域 */}
-            <motion.div 
-              className="teacher-selector-section"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 30 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
-              <TeacherSelector 
-                models={DEFAULT_MODELS}
-                selectedModels={selectedModels}
-                onTeacherSelectionChange={handleTeacherSelectionChange}
-                disabled={loadingState.isLoading}
-              />
-            </motion.div>
-
-            {/* EoT策略选择区域 */}
-            <motion.div 
-              className="eot-selector-section"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: isPageLoaded ? 1 : 0, y: isPageLoaded ? 0 : 30 }}
-              transition={{ duration: 0.6, delay: 1.4 }}
-            >
-              <h3>
-                <span><RobotOutlined /></span>
-                选择EoT策略
-              </h3>
-              <p className="eot-info-text">
-                选择一种EoT策略，帮助AI更好地理解问题的上下文和细节
-              </p>
-              <EoTSelector
-                selectedStrategy={selectedEoTStrategy}
-                onStrategyChange={setSelectedEoTStrategy}
-                disabled={loadingState.isLoading}
-              />
-            </motion.div>
-
-            {/* 加载指示器 */}
-            {loadingState.isLoading && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
+              <Tabs 
+                activeKey={activeTab} 
+                onChange={setActiveTab}
+                type="card"
+                style={{ marginTop: 24 }}
               >
-                <LoadingIndicator loadingState={loadingState} />
-              </motion.div>
-            )}
+                <TabPane 
+                  tab={
+                    <span>
+                      <RobotOutlined />
+                      AI辩论
+                    </span>
+                  } 
+                  key="debate"
+                >
+                  {/* 问题输入区域 */}
+                  <motion.div 
+                    className="question-section"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: activeTab === 'debate' ? 1 : 0, y: activeTab === 'debate' ? 0 : 30 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                  >
+                    <h2>
+                      <span><QuestionCircleOutlined /></span>
+                      提出您的问题
+                    </h2>
+                    <QuestionInput
+                      onSubmit={handleQuestionSubmit}
+                      isLoading={loadingState.isLoading}
+                      placeholder="请输入您想要探讨的问题，例如：人工智能对教育的影响是什么？"
+                    />
+                  </motion.div>
 
-            {/* 结果展示 */}
-            {(debateResult || partialResult) && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8 }}
-              >
-                <ResultDisplay
-                  result={debateResult || partialResult}
-                  isLoading={loadingState.isLoading}
-                />
-              </motion.div>
-            )}
+                  {/* 模型选择区域 */}
+                  <motion.div 
+                    className="model-selector-section"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: activeTab === 'debate' ? 1 : 0, y: activeTab === 'debate' ? 0 : 30 }}
+                    transition={{ duration: 0.6, delay: 0.4 }}
+                  >
+                    <h3>
+                      <span><ApiOutlined /></span>
+                      选择参与辩论的AI模型
+                    </h3>
+                    <p className="model-info-text">
+                      至少选择2个模型进行辩论，让不同AI视角帮助分析问题，获取更客观的结论
+                    </p>
+                    <ModelSelector
+                      models={DEFAULT_MODELS}
+                      selectedModels={selectedModels}
+                      onModelChange={handleModelChange}
+                      disabled={loadingState.isLoading}
+                    />
+                  </motion.div>
+
+                  {/* 教师选择区域 */}
+                  <motion.div 
+                    className="teacher-selector-section"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: activeTab === 'debate' ? 1 : 0, y: activeTab === 'debate' ? 0 : 30 }}
+                    transition={{ duration: 0.6, delay: 0.6 }}
+                  >
+                    <TeacherSelector 
+                      models={DEFAULT_MODELS}
+                      selectedModels={selectedModels}
+                      onTeacherSelectionChange={handleTeacherSelectionChange}
+                      disabled={loadingState.isLoading}
+                    />
+                  </motion.div>
+
+                  {/* EoT策略选择区域 */}
+                  <motion.div 
+                    className="eot-selector-section"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: activeTab === 'debate' ? 1 : 0, y: activeTab === 'debate' ? 0 : 30 }}
+                    transition={{ duration: 0.6, delay: 0.8 }}
+                  >
+                    <h3>
+                      <span><RobotOutlined /></span>
+                      选择EoT策略
+                    </h3>
+                    <p className="eot-info-text">
+                      选择一种EoT策略，帮助AI更好地理解问题的上下文和细节
+                    </p>
+                    <EoTSelector
+                      selectedStrategy={selectedEoTStrategy}
+                      onStrategyChange={setSelectedEoTStrategy}
+                      disabled={loadingState.isLoading}
+                    />
+                  </motion.div>
+
+                  {/* 加载指示器 */}
+                  {loadingState.isLoading && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <LoadingIndicator loadingState={loadingState} />
+                    </motion.div>
+                  )}
+
+                  {/* 结果展示 */}
+                  {(debateResult || partialResult) && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.8 }}
+                    >
+                      <ResultDisplay
+                        result={debateResult || partialResult}
+                        isLoading={loadingState.isLoading}
+                      />
+                    </motion.div>
+                  )}
+                </TabPane>
+
+                <TabPane 
+                  tab={
+                    <span>
+                      <ExperimentOutlined />
+                      多智能体学习
+                    </span>
+                  } 
+                  key="multi-agent"
+                >
+                  <MultiAgentDashboard 
+                    userProfile={learnerProfile}
+                    onProfileUpdate={setLearnerProfile}
+                  />
+                </TabPane>
+
+                <TabPane 
+                  tab={
+                    <span>
+                      <UserOutlined />
+                      个人画像
+                    </span>
+                  } 
+                  key="profile"
+                >
+                  <LearnerProfileManager 
+                    userId={userId}
+                    profile={learnerProfile}
+                    onProfileUpdate={setLearnerProfile}
+                  />
+                </TabPane>
+
+                <TabPane 
+                  tab={
+                    <span>
+                      <BulbOutlined />
+                      学习推荐
+                    </span>
+                  } 
+                  key="recommendations"
+                >
+                  <LearningRecommendationPanel 
+                    userId={userId}
+                    profile={learnerProfile}
+                    availableAgents={availableAgents}
+                  />
+                </TabPane>
+
+                <TabPane 
+                  tab={
+                    <span>
+                      <BarChartOutlined />
+                      学习进度
+                    </span>
+                  } 
+                  key="progress"
+                >
+                  <LearningProgressTracker 
+                    userId={userId}
+                    profile={learnerProfile}
+                  />
+                </TabPane>
+
+                <TabPane 
+                  tab={
+                    <span>
+                      <ApiOutlined />
+                      智能体协作
+                    </span>
+                  } 
+                  key="collaboration"
+                >
+                  <AgentCollaborationView 
+                    agents={availableAgents}
+                    steps={[]}
+                    isActive={false}
+                  />
+                </TabPane>
+              </Tabs>
+            </motion.div>
           </Content>
         </Layout>
         
