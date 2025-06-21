@@ -1,23 +1,78 @@
-# 多LLM辩论教育平台 (DebateLLMEduCourt)
+# 多智能体教育平台 (Multi-Agent Education Platform)
 
-一个基于React和Node.js的教育应用，通过接入多个大型语言模型(LLM)实现辩论式问答，帮助用户通过不同视角理解复杂问题，培养批判性思维。
+一个基于React和Node.js的下一代教育应用，通过多智能体协作提供个性化学习体验。该平台不仅支持传统的多LLM辩论式问答，更升级为完整的智能教育生态系统。
+
+## 🌟 新功能展示
+
+### 多智能体学习仪表板
+![多智能体学习](https://via.placeholder.com/800x400?text=Multi-Agent+Learning+Dashboard)
+*通过四大核心智能体协作，提供个性化学习内容生成*
+
+### 用户画像管理
+![用户画像](https://via.placeholder.com/800x400?text=Learner+Profile+Management)
+*全面的学习者画像，包含学习风格、偏好设置和知识地图*
+
+### 智能推荐系统
+![智能推荐](https://via.placeholder.com/800x400?text=AI+Recommendation+System)
+*基于用户行为和画像的多维度学习内容推荐*
+
+### 学习进度追踪
+![进度追踪](https://via.placeholder.com/800x400?text=Learning+Progress+Tracker)
+*可视化学习统计、目标管理和成就系统*
+
+### 智能体协作可视化
+![协作可视化](https://via.placeholder.com/800x400?text=Agent+Collaboration+View)
+*实时展示智能体协作过程和状态监控*
+
+## 🎮 使用指南
+
+### 新用户入门
+1. **完善个人画像**: 访问"个人画像"标签页，填写学习偏好和目标
+2. **开始学习**: 在"多智能体学习"中输入学习主题，选择合适的工作流
+3. **查看推荐**: "学习推荐"提供个性化的学习建议
+4. **追踪进度**: "学习进度"展示你的成长轨迹和成就
+
+### 高级功能
+- **智能体协作**: 观看多个AI智能体如何协作生成学习内容
+- **Markdown渲染**: 学习成果支持富文本格式，提升阅读体验
+- **成果导出**: 将学习结果导出为Markdown或JSON格式
+- **学习分析**: 深度分析学习行为和效果
 
 ## 🎯 项目特点
 
+### 🤖 多智能体教育系统 (NEW!)
+- **四大核心智能体**: 课程设计师、内容生成器、评估专家、活动设计师
+- **智能体协作**: 支持并行协作和顺序工作流
+- **个性化学习**: 基于用户画像的自适应学习路径
+- **学习成果可视化**: 智能体贡献分析和协作过程展示
+
+### 👤 用户画像系统 (NEW!)
+- **全面画像**: 学习风格、偏好设置、知识地图
+- **智能推荐**: 多维度个性化学习内容推荐
+- **进度追踪**: 实时学习统计和成就系统
+- **自适应调整**: 根据学习行为动态优化体验
+
+### 🎓 传统LLM辩论功能
 - **多模型辩论**: 集成Google Gemini、DeepSeek、Qwen、Doubao、ChatGLM、Hunyuan等6个主流LLM
 - **EoT推理策略**: 支持四种Exchange-of-Thought推理模式：
   - 辩论 (Debate): 全网状多模型交互
   - 记忆 (Memory/Bus): 3阶段共享内存池方法
   - 报告 (Report/Star): 3阶段中心化汇报模式
   - 接力 (Relay/Ring): 顺序传递验证机制
-- **AI教师人格化**: 5位经典教师人格(苏格拉底、居里夫人、孔子、爱因斯坦、蒙台梭利)，每位都有独特的教学风格和回答方式
-- **游戏化学习**: 15级等级系统、12种成就徽章、学习进度追踪，让AI学习更有趣
-- **三阶段流程**: 初始回答 → 交叉审视修正 → 最终验证与综合
-- **渐进式渲染**: 每个辩论阶段完成后立即展示结果，无需等待全部完成
-- **教育导向**: 通过展示不同观点减少AI幻觉，提升学习效果
-- **现代技术栈**: React + TypeScript + Next.js + Ant Design + Vercel部署
-- **用户体验优化**: 主题系统、粒子背景动画、移动端优化、辅助功能增强
-- **结果分享导出**: 支持多种方式分享和导出辩论结果
+- **AI教师人格化**: 5位经典教师人格(苏格拉底、居里夫人、孔子、爱因斯坦、蒙台梭利)
+
+### 🎮 游戏化学习体验
+- **15级等级系统**: 从初学者到专家的成长路径
+- **12种成就徽章**: 多维度学习激励机制
+- **学习进度追踪**: 可视化学习轨迹和统计分析
+- **智能反馈**: 基于表现的个性化建议
+
+### 💡 技术亮点
+- **现代技术栈**: React + TypeScript + Next.js + Ant Design
+- **响应式设计**: 完美适配桌面端和移动端
+- **Markdown渲染**: 支持富文本学习内容展示
+- **实时协作**: 智能体状态实时监控和交互
+- **性能优化**: 组件懒加载、虚拟滚动、智能缓存
 
 ## 🚀 快速开始
 
@@ -62,16 +117,41 @@ npm run dev
 ```
 DebateLLMEduCourt/
 ├── src/                    # 前端源码
+```
+DebateLLMEduCourt/
+├── src/                    # 前端源码
 │   ├── components/         # React组件
+│   │   ├── MultiAgentDashboard.tsx      # 多智能体仪表板
+│   │   ├── LearnerProfileManager.tsx    # 用户画像管理
+│   │   ├── LearningRecommendationPanel.tsx # 学习推荐
+│   │   ├── LearningProgressTracker.tsx  # 进度追踪
+│   │   ├── AgentCollaborationView.tsx   # 协作可视化
+│   │   ├── LearningResultDetail.tsx     # 成果详情
+│   │   └── ...                          # 其他组件
+│   ├── agents/             # 多智能体系统 (NEW!)
+│   │   ├── BaseAgent.ts                 # 智能体基类
+│   │   ├── CurriculumDesignerAgent.ts   # 课程设计师
+│   │   ├── ContentGeneratorAgent.ts     # 内容生成器
+│   │   ├── AssessmentExpertAgent.ts     # 评估专家
+│   │   └── ActivityDesignerAgent.ts     # 活动设计师
 │   ├── pages/              # Next.js页面
 │   ├── styles/             # 样式文件
 │   ├── types/              # TypeScript类型定义
 │   └── utils/              # 工具函数
-├── api/                    # 后端API (Vercel Functions)
-│   ├── debate/             # 核心辩论逻辑
-│   ├── llm/                # LLM客户端封装
-│   └── utils/              # 后端工具函数
+│       ├── learnerProfile.ts            # 用户画像管理
+│       └── ...                          # 其他工具
+├── pages/api/              # 后端API (Vercel Functions)
+│   ├── agent-llm-call.ts              # 智能体LLM调用API
+│   ├── multi-agent-learning.ts        # 多智能体学习API
+│   ├── learner-profile/               # 用户画像API
+│   ├── debate/                        # 核心辩论逻辑
+│   ├── llm/                           # LLM客户端封装
+│   └── utils/                         # 后端工具函数
 ├── public/                 # 静态资源
+├── docs/                   # 文档 (NEW!)
+│   ├── NEW_FEATURES.md                # 新功能总结
+│   ├── DEVELOPMENT_PROGRESS.md        # 开发进度
+│   └── MULTI_AGENT_EDUCATION_IMPROVEMENT_PLAN.md
 └── 配置文件...
 ```
 
@@ -83,16 +163,18 @@ DebateLLMEduCourt/
 - Ant Design (UI组件库)
 - Framer Motion (动画效果)
 - Axios (HTTP客户端)
-- React Markdown (结果渲染)
-  - remark-math (LaTeX公式支持)
-  - rehype-katex (KaTeX渲染器)
+- React Markdown + remark-gfm + rehype-highlight (Markdown渲染)
 - React Particles (背景效果)
-- CSS 变量 (主题系统)
+- CSS Modules (样式隔离)
+- dayjs (时间处理)
 
 **后端**
 - Node.js + TypeScript
 - Vercel Serverless Functions
+- 多智能体协作引擎 (NEW!)
 - EoT推理引擎 (多通信范式支持)
+- 用户画像系统 (NEW!)
+- 智能推荐算法 (NEW!)
 - 多LLM SDK集成
 - SSE (Server-Sent Events)
 
@@ -247,25 +329,34 @@ npm run lint
 
 ## 🤝 贡献指南
 
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+我们欢迎任何形式的贡献！请查看以下方式：
 
-## 📄 许可证
+1. **Bug报告**: 在GitHub Issues中报告问题
+2. **功能建议**: 提出新功能的想法和建议
+3. **代码贡献**: Fork项目并提交Pull Request
+4. **文档改进**: 帮助完善文档和示例
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+## 📚 相关文档
 
-## 🙋‍♂️ 支持
+- [📋 新功能详细说明](./NEW_FEATURES.md) - 多智能体教育系统完整功能介绍
+- [📈 开发进度](./DEVELOPMENT_PROGRESS.md) - 开发阶段和任务完成情况
+- [🔮 改进方案](./MULTI_AGENT_EDUCATION_IMPROVEMENT_PLAN.md) - 多智能体教育平台改进计划
+- [🔗 研究参考](https://edu-aiagents.com/research) - 多智能体教育相关研究
 
-如果您有任何问题或建议，请通过以下方式联系：
+## 📄 License
 
-- 创建 [Issue](https://github.com/Summerlemon233/DebateLLMEduCourt/issues)
+本项目采用 MIT License - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 🙏 致谢
+
+- 感谢所有LLM API提供商的支持
+- 感谢开源社区提供的优秀工具和框架
+- 感谢多智能体教育研究社区的理论指导
+- 感谢所有用户的反馈和建议
 
 ---
 
-**⭐ 如果这个项目对您有帮助，请给它一个星标！**
+**🌟 如果这个项目对您有帮助，请给我们一个Star！**
 
 ## 🔄 开发路线图
 
