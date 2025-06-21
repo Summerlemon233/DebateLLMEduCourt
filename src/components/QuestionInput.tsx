@@ -64,10 +64,11 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
 
   return (
     <div className="question-input-container">
+      {/* 问题输入框 */}
       <div 
         style={{ 
           position: 'relative',
-          marginBottom: '16px',
+          marginBottom: '20px',
           transition: 'all 0.3s ease'
         }}
       >
@@ -95,33 +96,41 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
             maxLength={1000}
           />
         </motion.div>
-        
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '8px', 
-          fontSize: '0.8rem', 
-          color: 'var(--text-light)',
-          padding: '0 5px'
-        }}>
-          <div>
-            <SearchOutlined style={{ marginRight: '6px' }} />
-            提示：输入您感兴趣的话题，探索不同AI模型的观点
-          </div>
-          <div style={{ 
-            color: charCount.color,
-            fontWeight: charCount.count > 800 ? 500 : 400
-          }}>
-            {charCount.count}/{charCount.max}
-          </div>
-        </div>
       </div>
       
+      {/* 提示文本 - 单独一行 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '12px',
+        fontSize: '0.85rem',
+        color: 'var(--text-light)',
+        padding: '0 5px'
+      }}>
+        <SearchOutlined style={{ marginRight: '6px' }} />
+        提示：输入您感兴趣的话题，探索不同AI模型的观点
+      </div>
+      
+      {/* 字符计数 - 单独一行 */}
+      <div style={{ 
+        textAlign: 'right',
+        fontSize: '0.8rem',
+        color: charCount.color,
+        fontWeight: charCount.count > 800 ? 500 : 400,
+        marginBottom: '16px',
+        padding: '0 5px'
+      }}>
+        {charCount.count}/{charCount.max}
+      </div>
+      
+      {/* 开始辩论按钮 - 单独一行 */}
       <motion.div
         whileHover={isLoading ? {} : { scale: 1.02 }}
         whileTap={isLoading ? {} : { scale: 0.98 }}
-        style={{ textAlign: 'right' }}
+        style={{ 
+          textAlign: 'center',
+          marginBottom: '16px'
+        }}
       >
         <Button
           type="primary"
@@ -131,11 +140,18 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
           loading={isLoading}
           disabled={!question.trim() || isLoading}
           className="submit-button"
+          style={{
+            minWidth: '150px',
+            height: '45px',
+            fontSize: '16px',
+            fontWeight: 500
+          }}
         >
           {isLoading ? '辩论中...' : '开始辩论'}
         </Button>
       </motion.div>
       
+      {/* Ctrl+Enter 快捷键提示 - 单独一行 */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -144,7 +160,6 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginTop: '15px',
           fontSize: '0.85rem',
           color: 'var(--text-secondary)',
           gap: '8px'
@@ -152,9 +167,10 @@ const QuestionInput: React.FC<QuestionInputProps> = ({
       >
         <span style={{ 
           background: 'var(--bg-tertiary)',
-          padding: '3px 8px',
-          borderRadius: '4px',
-          fontWeight: 500
+          padding: '4px 10px',
+          borderRadius: '6px',
+          fontWeight: 500,
+          fontSize: '0.8rem'
         }}>
           Ctrl + Enter
         </span>

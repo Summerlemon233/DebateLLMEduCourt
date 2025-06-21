@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { Layout, message } from 'antd';
 import { RobotOutlined, BulbOutlined } from '@ant-design/icons';
@@ -8,9 +8,12 @@ import ModelSelector from '@/components/ModelSelector';
 import TeacherSelector from '@/components/TeacherSelector';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import ResultDisplay from '@/components/ResultDisplay';
+import GamificationPanel from '@/components/GamificationPanel';
 
 import { startDebate } from '@/utils/api';
 import { TeacherSelectionState } from '@/utils/teacherPersonas';
+import { GamificationManager, GamificationEvent } from '@/utils/gamification';
+import { showAchievementNotification, showLevelUpNotification } from '@/components/AchievementNotification';
 import type { 
   DebateResult, 
   LoadingState, 
@@ -81,6 +84,29 @@ export default function HomePage() {
     progress: 0,
   });
 
+  // 处理游戏化事件
+  const handleGamificationEvent = (event: GamificationEvent) => {
+    const result = GamificationManager.handleEvent(event);
+    
+    // 显示新成就通知
+    result.newAchievements.forEach(achievement => {
+      showAchievementNotification(achievement, result.pointsEarned);
+    });
+
+    // 显示等级提升通知
+    if (result.levelUp) {
+      const userStats = GamificationManager.getUserStats();
+      const levelTitle = GamificationManager.getLevelTitle(userStats.level);
+      showLevelUpNotification(userStats.level, levelTitle);
+    }
+  };
+
+  // 初始化游戏化系统
+  useEffect(() => {
+    // 触发每日登录事件
+    handleGamificationEvent({ type: 'daily_login' });
+  }, []);
+
   // 处理问题提交
   const handleQuestionSubmit = async (question: string) => {
     if (!question.trim()) {
@@ -130,6 +156,27 @@ export default function HomePage() {
         currentStage: null,
         currentModel: null,
         progress: 100,
+      });
+
+      // 触发游戏化事件
+      handleGamificationEvent({
+        type: 'debate_completed',
+        data: { 
+          models: selectedModels,
+          question: question.trim(),
+          teacherPersonas: teacherSelection
+        }
+      });
+
+      // 处理教师交互事件
+      Object.keys(teacherSelection).forEach(modelId => {
+        const teacherId = teacherSelection[modelId];
+        if (teacherId) {
+          handleGamificationEvent({
+            type: 'teacher_interaction',
+            data: { teacherId }
+          });
+        }
       });
 
       message.success('辩论完成！');
@@ -227,6 +274,9 @@ export default function HomePage() {
             />
           </Content>
         </Layout>
+
+        {/* 游戏化面板 */}
+        <GamificationPanel />
       </div>
     </>
   );

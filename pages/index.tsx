@@ -19,9 +19,12 @@ import TeacherSelector from '../src/components/TeacherSelector';
 import EoTSelector from '../src/components/EoTSelector';
 import LoadingIndicator from '../src/components/LoadingIndicator';
 import ResultDisplay from '../src/components/ResultDisplay';
+import GamificationPanel from '../src/components/GamificationPanel';
 
 import { startDebate, startEoTReasoning, startEoTReasoningWithStream } from '../src/utils/api';
 import { TeacherSelectionState } from '../src/utils/teacherPersonas';
+import { GamificationManager, GamificationEvent } from '../src/utils/gamification';
+import { showAchievementNotification, showLevelUpNotification } from '../src/components/AchievementNotification';
 import type { 
   DebateResult, 
   LoadingState, 
@@ -98,6 +101,28 @@ export default function HomePage() {
   });
   const [eotStrategy, setEoTStrategy] = useState<EoTStrategy | null>(null);
   
+  // 处理游戏化事件
+  const handleGamificationEvent = (event: GamificationEvent) => {
+    // 只在客户端环境中处理游戏化事件
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const result = GamificationManager.handleEvent(event);
+    
+    // 显示新成就通知
+    result.newAchievements.forEach(achievement => {
+      showAchievementNotification(achievement, result.pointsEarned);
+    });
+
+    // 显示等级提升通知
+    if (result.levelUp) {
+      const userStats = GamificationManager.getUserStats();
+      const levelTitle = GamificationManager.getLevelTitle(userStats.level);
+      showLevelUpNotification(userStats.level, levelTitle);
+    }
+  };
+  
   // 从 localStorage 加载主题
   useEffect(() => {
     // 页面加载后检查是否存在保存的主题
@@ -138,6 +163,19 @@ export default function HomePage() {
     } else {
       window.addEventListener('load', onLoad);
       return () => window.removeEventListener('load', onLoad);
+    }
+  }, []);
+  
+  // 初始化游戏化系统
+  useEffect(() => {
+    // 只在客户端环境中初始化游戏化系统
+    if (typeof window !== 'undefined') {
+      // 延迟执行，确保页面完全加载
+      const timer = setTimeout(() => {
+        handleGamificationEvent({ type: 'daily_login' });
+      }, 1000);
+
+      return () => clearTimeout(timer);
     }
   }, []);
   
@@ -277,6 +315,18 @@ export default function HomePage() {
 
         const result = await startDebate(request, handleStageUpdate, handleStageComplete);
         setDebateResult(result);
+        
+        // 触发游戏化事件
+        handleGamificationEvent({
+          type: 'debate_completed',
+          data: { 
+            models: selectedModels,
+            question: question.trim(),
+            teacherPersonas: teacherSelection,
+            strategy: 'debate'
+          }
+        });
+        
         message.success('辩论完成！');
       } else {
         // 使用新的EoT流式传输API
@@ -289,10 +339,39 @@ export default function HomePage() {
 
         const result = await startEoTReasoningWithStream(eotRequest, handleStageUpdate, handleStageComplete);
         setDebateResult(result);
+        
+        // 触发游戏化事件
+        handleGamificationEvent({
+          type: 'debate_completed',
+          data: { 
+            models: selectedModels,
+            question: question.trim(),
+            teacherPersonas: teacherSelection,
+            strategy: selectedEoTStrategy
+          }
+        });
+        
+        // 处理策略使用事件
+        handleGamificationEvent({
+          type: 'strategy_use',
+          data: { strategy: selectedEoTStrategy }
+        });
+        
         message.success(`${selectedEoTStrategy}策略推理完成！`);
       }
 
-      // 设置最终状态
+        // 处理教师交互事件
+        Object.keys(teacherSelection).forEach(modelId => {
+          const teacherId = teacherSelection[modelId];
+          if (teacherId) {
+            handleGamificationEvent({
+              type: 'teacher_interaction',
+              data: { teacherId }
+            });
+          }
+        });
+        
+        // 设置最终状态
       setLoadingState({
         isLoading: false,
         currentStage: null,
@@ -635,6 +714,9 @@ export default function HomePage() {
             )}
           </Content>
         </Layout>
+        
+        {/* 游戏化面板 */}
+        <GamificationPanel />
       </div>
     </>
   );
